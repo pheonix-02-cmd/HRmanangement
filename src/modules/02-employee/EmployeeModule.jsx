@@ -27,16 +27,15 @@ export const EmployeeModule = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const [newEmpForm, setNewEmpForm] = useState({
-    full_name: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
     role: 'employee',
-    emp_code: `NX-00${Math.floor(Math.random() * 90 + 10)}`,
     department_id: '',
     designation_id: '',
-    reports_to: '',
+    manager_id: '',
     employment_type: 'Full-Time',
-    blood_group: 'B+',
     emergency_contact: '',
   });
 
@@ -54,8 +53,8 @@ export const EmployeeModule = () => {
     if (deptRes.data?.length > 0 && !newEmpForm.department_id) {
       setNewEmpForm(prev => ({
         ...prev,
-        department_id: deptRes.data[0].id,
-        designation_id: desRes.data?.[0]?.id || ''
+        department_id: deptRes.data[0].department_id || deptRes.data[0].id,
+        designation_id: desRes.data?.[0]?.designation_id || desRes.data?.[0]?.id || ''
       }));
     }
   };
@@ -65,58 +64,73 @@ export const EmployeeModule = () => {
   }, []);
 
   const enrichedEmployees = employees.map(emp => {
-    const prof = profiles.find(p => p.id === emp.profile_id) || {};
-    const dept = departments.find(d => d.id === emp.department_id) || { name: 'Unassigned', code: 'N/A' };
-    const des = designations.find(d => d.id === emp.designation_id) || { title: 'Employee', level: 'L1' };
-    const managerEmp = employees.find(e => e.id === emp.reports_to);
-    const managerProf = managerEmp ? profiles.find(p => p.id === managerEmp.profile_id) : null;
+    const empId = emp.employee_id || emp.id;
+    const prof = profiles.find(p => p.employee_id === empId || p.id === emp.profile_id) || {};
+    const dept = departments.find(d => (d.department_id || d.id) === emp.department_id) || { department_name: 'Unassigned', name: 'Unassigned' };
+    const des = designations.find(d => (d.designation_id || d.id) === emp.designation_id) || { designation_name: 'Staff', title: 'Staff' };
+    const managerEmp = employees.find(e => (e.employee_id || e.id) === (emp.manager_id || emp.reports_to));
+    const managerName = managerEmp ? `${managerEmp.first_name || ''} ${managerEmp.last_name || ''}`.trim() : 'Executive Board';
+
+    const fullName = prof.full_name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 'Employee';
 
     return {
       ...emp,
+      employee_id: empId,
+      full_name: fullName,
       profile: prof,
       department: dept,
       designation: des,
-      managerName: managerProf?.full_name || 'Executive Board',
+      managerName,
+      deptName: dept.department_name || dept.name,
+      desigTitle: des.designation_name || des.title,
     };
   });
 
   const filteredEmployees = enrichedEmployees.filter(emp => {
-    const nameMatch = (emp.profile?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      (emp.emp_code || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      (emp.profile?.email || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const nameMatch = (emp.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      (emp.employee_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      (emp.email || '').toLowerCase().includes(searchQuery.toLowerCase());
     const deptMatch = selectedDept === 'all' || emp.department_id === selectedDept;
     return nameMatch && deptMatch;
   });
 
   const handleCreateEmployee = async (e) => {
     e.preventDefault();
-    const newProfileId = `usr-${Date.now().toString().slice(-4)}`;
-    
-    const newProfile = {
-      id: newProfileId,
-      full_name: sanitizeInput(newEmpForm.full_name),
-      email: sanitizeInput(newEmpForm.email).toLowerCase(),
-      phone: sanitizeInput(newEmpForm.phone),
-      role: newEmpForm.role,
-      avatar_url: `https://images.unsplash.com/photo-1534528741775?w=150`,
-      status: 'active'
-    };
-    await insertTableRow('profiles', newProfile);
+    const newEmpId = `EMP-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newProfileId = crypto.randomUUID ? crypto.randomUUID() : `usr-${Date.now()}`;
+    const firstName = sanitizeInput(newEmpForm.first_name);
+    const lastName = sanitizeInput(newEmpForm.last_name);
+    const fullName = `${firstName} ${lastName}`.trim();
+    const cleanEmail = sanitizeInput(newEmpForm.email).toLowerCase();
 
+    // 1. Insert into employee_records table
     const newRecord = {
-      id: `emp-${Date.now().toString().slice(-4)}`,
-      profile_id: newProfileId,
-      emp_code: sanitizeInput(newEmpForm.emp_code),
+      employee_id: newEmpId,
+      first_name: firstName,
+      last_name: lastName,
+      email: cleanEmail,
       department_id: newEmpForm.department_id,
       designation_id: newEmpForm.designation_id,
-      reports_to: newEmpForm.reports_to || null,
-      date_of_joining: new Date().toISOString().split('T')[0],
+      manager_id: newEmpForm.manager_id || null,
+      joining_date: new Date().toISOString().split('T')[0],
       employment_type: newEmpForm.employment_type,
-      blood_group: newEmpForm.blood_group,
+      phone: sanitizeInput(newEmpForm.phone),
       emergency_contact: sanitizeInput(newEmpForm.emergency_contact),
-      status: 'active'
+      address: 'Corporate HQ',
+      gender: 'Unspecified',
+      date_of_birth: '1995-01-01',
     };
     await insertTableRow('employee_records', newRecord);
+
+    // 2. Insert into profiles table
+    const newProfile = {
+      id: newProfileId,
+      employee_id: newEmpId,
+      email: cleanEmail,
+      full_name: fullName,
+      role: newEmpForm.role,
+    };
+    await insertTableRow('profiles', newProfile);
 
     setIsAddModalOpen(false);
     await loadData();
@@ -129,10 +143,10 @@ export const EmployeeModule = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-            Employees
+            Employee Directory
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Directory and organizational structure
+            Active staff members fetched from database
           </p>
         </div>
 
@@ -175,7 +189,7 @@ export const EmployeeModule = () => {
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search employees..."
+                placeholder="Search by name, ID or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-teal-500"
@@ -191,21 +205,25 @@ export const EmployeeModule = () => {
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                 }`}
               >
-                All
+                All Departments
               </button>
-              {departments.map((dept) => (
-                <button
-                  key={dept.id}
-                  onClick={() => setSelectedDept(dept.id)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
-                    selectedDept === dept.id
-                      ? 'bg-teal-600 text-white'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  {dept.code}
-                </button>
-              ))}
+              {departments.map((dept) => {
+                const deptId = dept.department_id || dept.id;
+                const deptName = dept.department_name || dept.name;
+                return (
+                  <button
+                    key={deptId}
+                    onClick={() => setSelectedDept(deptId)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition whitespace-nowrap ${
+                      selectedDept === deptId
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    {deptName}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -213,46 +231,44 @@ export const EmployeeModule = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredEmployees.map((emp) => (
               <div
-                key={emp.id}
+                key={emp.employee_id}
                 className="rounded-xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition"
               >
                 <div>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-3">
-                      <img
-                        src={emp.profile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775?w=150'}
-                        alt=""
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
+                      <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 flex items-center justify-center font-bold text-sm">
+                        {(emp.first_name?.[0] || emp.full_name?.[0] || 'E').toUpperCase()}
+                      </div>
                       <div>
                         <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {emp.profile?.full_name}
+                          {emp.full_name}
                         </h4>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {emp.designation?.title}
+                          {emp.desigTitle}
                         </p>
                       </div>
                     </div>
                     <Badge variant="neutral" size="xs">
-                      {emp.emp_code}
+                      {emp.employee_id}
                     </Badge>
                   </div>
 
                   <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
                     <div className="flex items-center">
                       <Building2 className="w-3.5 h-3.5 mr-2 text-slate-400" />
-                      <span>{emp.department?.name}</span>
+                      <span>{emp.deptName}</span>
                     </div>
                     <div className="flex items-center">
                       <Mail className="w-3.5 h-3.5 mr-2 text-slate-400" />
-                      <span className="truncate">{emp.profile?.email}</span>
+                      <span className="truncate">{emp.email}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                   <span className="text-[11px] text-slate-400">
-                    Joined {emp.date_of_joining}
+                    Joined {emp.joining_date || '2026-01-01'}
                   </span>
                   <button
                     onClick={() => setSelectedEmp(emp)}
@@ -272,23 +288,27 @@ export const EmployeeModule = () => {
           <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-6">Reporting Hierarchy</h3>
 
           <div className="flex flex-col items-center space-y-6">
-            {enrichedEmployees.filter(e => !e.reports_to).map(director => (
-              <div key={director.id} className="flex flex-col items-center">
+            {enrichedEmployees.filter(e => !e.manager_id && !e.reports_to).map(director => (
+              <div key={director.employee_id} className="flex flex-col items-center">
                 <div className="p-3.5 rounded-xl bg-teal-600 text-white text-center w-52 shadow-sm">
-                  <img src={director.profile?.avatar_url} alt="" className="w-10 h-10 rounded-full mx-auto object-cover mb-1.5" />
-                  <h4 className="font-semibold text-xs">{director.profile?.full_name}</h4>
-                  <p className="text-[11px] text-teal-100">{director.designation?.title}</p>
+                  <div className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center font-bold text-sm mx-auto mb-1.5">
+                    {(director.first_name?.[0] || 'D').toUpperCase()}
+                  </div>
+                  <h4 className="font-semibold text-xs">{director.full_name}</h4>
+                  <p className="text-[11px] text-teal-100">{director.desigTitle}</p>
                 </div>
 
                 <div className="w-px h-6 bg-slate-300 dark:bg-slate-700" />
                 <div className="w-3/4 max-w-xl h-px bg-slate-300 dark:bg-slate-700" />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-3">
-                  {enrichedEmployees.filter(e => e.reports_to === director.id).map(report => (
-                    <div key={report.id} className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-center w-40">
-                      <img src={report.profile?.avatar_url} alt="" className="w-8 h-8 rounded-full mx-auto object-cover mb-1" />
-                      <h5 className="font-medium text-xs text-slate-900 dark:text-white truncate">{report.profile?.full_name}</h5>
-                      <p className="text-[10px] text-slate-400 truncate">{report.designation?.title}</p>
+                  {enrichedEmployees.filter(e => (e.manager_id || e.reports_to) === director.employee_id).map(report => (
+                    <div key={report.employee_id} className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-center w-40">
+                      <div className="w-8 h-8 rounded-full bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 flex items-center justify-center font-bold text-xs mx-auto mb-1">
+                        {(report.first_name?.[0] || 'E').toUpperCase()}
+                      </div>
+                      <h5 className="font-medium text-xs text-slate-900 dark:text-white truncate">{report.full_name}</h5>
+                      <p className="text-[10px] text-slate-400 truncate">{report.desigTitle}</p>
                     </div>
                   ))}
                 </div>
@@ -303,42 +323,40 @@ export const EmployeeModule = () => {
         <Modal isOpen={Boolean(selectedEmp)} onClose={() => setSelectedEmp(null)} title="Employee Details" maxWidth="max-w-md">
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <img
-                src={selectedEmp.profile?.avatar_url}
-                alt=""
-                className="w-12 h-12 rounded-full object-cover"
-              />
+              <div className="w-12 h-12 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 flex items-center justify-center font-bold text-base">
+                {(selectedEmp.first_name?.[0] || selectedEmp.full_name?.[0] || 'E').toUpperCase()}
+              </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">{selectedEmp.profile?.full_name}</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{selectedEmp.designation?.title}</p>
-                <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400">{selectedEmp.emp_code}</span>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">{selectedEmp.full_name}</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{selectedEmp.desigTitle}</p>
+                <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400">{selectedEmp.employee_id}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 text-xs">
               <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800">
                 <span className="text-slate-400">Email</span>
-                <p className="font-medium text-slate-800 dark:text-slate-200 truncate mt-0.5">{selectedEmp.profile?.email}</p>
+                <p className="font-medium text-slate-800 dark:text-slate-200 truncate mt-0.5">{selectedEmp.email}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800">
                 <span className="text-slate-400">Phone</span>
-                <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">{selectedEmp.profile?.phone || 'N/A'}</p>
+                <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">{selectedEmp.phone || 'N/A'}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800">
                 <span className="text-slate-400">Department</span>
-                <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">{selectedEmp.department?.name}</p>
+                <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">{selectedEmp.deptName}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800">
                 <span className="text-slate-400">Joining Date</span>
-                <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">{selectedEmp.date_of_joining}</p>
+                <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">{selectedEmp.joining_date || '2026-01-01'}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800">
-                <span className="text-slate-400">Reports To</span>
+                <span className="text-slate-400">Manager</span>
                 <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">{selectedEmp.managerName}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800">
-                <span className="text-slate-400">Type</span>
-                <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">{selectedEmp.employment_type}</p>
+                <span className="text-slate-400">Employment Type</span>
+                <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">{selectedEmp.employment_type || 'Full-Time'}</p>
               </div>
             </div>
 
@@ -357,20 +375,33 @@ export const EmployeeModule = () => {
       {/* Add Employee Modal */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Employee" maxWidth="max-w-md">
         <form onSubmit={handleCreateEmployee} className="space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Full Name</label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Rahul Sharma"
-              value={newEmpForm.full_name}
-              onChange={(e) => setNewEmpForm({ ...newEmpForm, full_name: e.target.value })}
-              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
-            />
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">First Name</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Rahul"
+                value={newEmpForm.first_name}
+                onChange={(e) => setNewEmpForm({ ...newEmpForm, first_name: e.target.value })}
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Last Name</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Sharma"
+                value={newEmpForm.last_name}
+                onChange={(e) => setNewEmpForm({ ...newEmpForm, last_name: e.target.value })}
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Email</label>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Corporate Email</label>
             <input
               type="email"
               required
@@ -390,7 +421,9 @@ export const EmployeeModule = () => {
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
               >
                 {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
+                  <option key={d.department_id || d.id} value={d.department_id || d.id}>
+                    {d.department_name || d.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -402,7 +435,9 @@ export const EmployeeModule = () => {
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
               >
                 {designations.map((des) => (
-                  <option key={des.id} value={des.id}>{des.title}</option>
+                  <option key={des.designation_id || des.id} value={des.designation_id || des.id}>
+                    {des.designation_name || des.title}
+                  </option>
                 ))}
               </select>
             </div>
@@ -410,13 +445,13 @@ export const EmployeeModule = () => {
 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Role</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Role / Access Level</label>
               <select
                 value={newEmpForm.role}
                 onChange={(e) => setNewEmpForm({ ...newEmpForm, role: e.target.value })}
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
               >
-                <option value="employee">Employee</option>
+                <option value="employee">Employee (Self-Service)</option>
                 <option value="manager">Manager</option>
                 <option value="hr">HR</option>
                 <option value="recruiter">Recruiter</option>
@@ -424,15 +459,15 @@ export const EmployeeModule = () => {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Reports To</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Reporting Manager</label>
               <select
-                value={newEmpForm.reports_to}
-                onChange={(e) => setNewEmpForm({ ...newEmpForm, reports_to: e.target.value })}
+                value={newEmpForm.manager_id}
+                onChange={(e) => setNewEmpForm({ ...newEmpForm, manager_id: e.target.value })}
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
               >
                 <option value="">Executive Board</option>
                 {enrichedEmployees.map((e) => (
-                  <option key={e.id} value={e.id}>{e.profile?.full_name}</option>
+                  <option key={e.employee_id} value={e.employee_id}>{e.full_name}</option>
                 ))}
               </select>
             </div>

@@ -13,93 +13,86 @@ import { fetchTableData, insertTableRow, updateTableRow } from '../../services/d
 import { sanitizeInput } from '../../utils/security';
 
 export const GrievanceModule = () => {
-  const { user, hasRole, canAccessEmployee } = useAuth();
+  const { user, hasRole } = useAuth();
+  const isEmployee = user?.role === 'employee';
+  const currentEmpId = user?.employee_id || user?.id;
+
   const [grievances, setGrievances] = useState([]);
   const [communications, setCommunications] = useState([]);
-  const [resolutions, setResolutions] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [profiles, setProfiles] = useState([]);
 
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [isNewTicketModalOpen, setIsNewTicketModalOpen] = useState(false);
 
   const [ticketForm, setTicketForm] = useState({
-    category: 'Workplace Ergonomics',
+    category: 'Workplace Environment',
     subject: '',
     description: '',
     priority: 'medium',
   });
 
   const loadAll = async () => {
-    const [gRes, cRes, rRes, eRes, pRes] = await Promise.all([
+    const [gRes, cRes, eRes] = await Promise.all([
       fetchTableData('grievances'),
       fetchTableData('grievance_communications'),
-      fetchTableData('grievance_resolutions'),
       fetchTableData('employee_records'),
-      fetchTableData('profiles'),
     ]);
     const grvs = gRes.data || [];
     setGrievances(grvs);
     setCommunications(cRes.data || []);
-    setResolutions(rRes.data || []);
     setEmployees(eRes.data || []);
-    setProfiles(pRes.data || []);
   };
 
   useEffect(() => {
     loadAll();
   }, []);
 
-  const currentEmp = employees.find(e => e.profile_id === user?.id || e.id === user?.emp_id) || employees[0];
-
-  // Data Scoping: Employees only see their own tickets
-  const scopedGrievances = grievances.filter(grv => {
-    const emp = employees.find(e => e.id === grv.employee_id);
-    return canAccessEmployee(grv.employee_id, emp?.reports_to);
-  });
+  // Data Scoping: Employees ONLY see their own tickets
+  const scopedGrievances = isEmployee
+    ? grievances.filter(grv => grv.employee_id === currentEmpId)
+    : grievances;
 
   useEffect(() => {
     if (scopedGrievances.length > 0 && !selectedTicket) {
       setSelectedTicket(scopedGrievances[0]);
-    } else if (scopedGrievances.length > 0 && !scopedGrievances.find(g => g.id === selectedTicket?.id)) {
+    } else if (scopedGrievances.length > 0 && !scopedGrievances.find(g => (g.grievance_id || g.id) === (selectedTicket?.grievance_id || selectedTicket?.id))) {
       setSelectedTicket(scopedGrievances[0]);
     }
   }, [scopedGrievances]);
 
   const handleCreateTicket = async (e) => {
     e.preventDefault();
-    const ticketNo = `GRV-2026-${Math.floor(Math.random() * 900 + 100)}`;
+    const newId = `grv-${Date.now().toString().slice(-4)}`;
 
     const newTicket = {
-      id: `grv-${Date.now().toString().slice(-4)}`,
-      ticket_no: ticketNo,
-      employee_id: currentEmp?.id || 'emp-4',
+      grievance_id: newId,
+      employee_id: currentEmpId,
       category: ticketForm.category,
       subject: sanitizeInput(ticketForm.subject),
       description: sanitizeInput(ticketForm.description),
       priority: ticketForm.priority,
       status: 'submitted',
-      filed_at: new Date().toISOString()
+      assigned_to: 'EMP-1001'
     };
 
     await insertTableRow('grievances', newTicket);
     setIsNewTicketModalOpen(false);
-    setTicketForm({ category: 'Workplace Ergonomics', subject: '', description: '', priority: 'medium' });
+    setTicketForm({ category: 'Workplace Environment', subject: '', description: '', priority: 'medium' });
     await loadAll();
   };
 
   const handleSendReply = async (e) => {
     e.preventDefault();
     if (!replyText.trim() || !selectedTicket) return;
+    const ticketId = selectedTicket.grievance_id || selectedTicket.id;
 
     const newComm = {
       id: `gc-${Date.now().toString().slice(-4)}`,
-      grievance_id: selectedTicket.id,
-      sender_id: currentEmp?.id || 'emp-1',
+      grievance_id: ticketId,
+      sender_id: currentEmpId,
       message: sanitizeInput(replyText),
-      timestamp: new Date().toISOString(),
-      is_internal_note: false
+      created_at: new Date().toISOString()
     };
 
     await insertTableRow('grievance_communications', newComm);
@@ -109,23 +102,14 @@ export const GrievanceModule = () => {
 
   const handleResolveTicket = async () => {
     if (!selectedTicket || !hasRole(['admin', 'hr'])) return;
+    const ticketId = selectedTicket.grievance_id || selectedTicket.id;
 
-    const newResolution = {
-      id: `gr-${Date.now().toString().slice(-4)}`,
-      grievance_id: selectedTicket.id,
-      resolved_by: currentEmp?.id || 'emp-1',
-      resolution_summary: 'Resolved through administrative action.',
-      action_taken: 'Remedial action taken.',
-      employee_feedback: 'Acknowledged',
-      resolved_at: new Date().toISOString()
-    };
-
-    await insertTableRow('grievance_resolutions', newResolution);
-    await updateTableRow('grievances', selectedTicket.id, { status: 'resolved' });
+    await updateTableRow('grievances', ticketId, { status: 'resolved' });
     await loadAll();
   };
 
-  const activeTicketComms = communications.filter(c => c.grievance_id === selectedTicket?.id);
+  const currentTicketId = selectedTicket ? (selectedTicket.grievance_id || selectedTicket.id) : null;
+  const activeTicketComms = communications.filter(c => c.grievance_id === currentTicketId);
 
   return (
     <div className="space-y-6">
@@ -134,11 +118,11 @@ export const GrievanceModule = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center">
-            <span>Grievances</span>
+            <span>{isEmployee ? 'My Grievances & Concerns' : 'Grievance Redressal'}</span>
             <Lock className="w-4 h-4 ml-2 text-teal-600 dark:text-teal-400" />
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {user?.role === 'employee' ? 'Your confidential tickets and communications' : 'Confidential employee redressal portal'}
+            {isEmployee ? 'Confidential inquiries and HR communications' : 'Confidential employee redressal portal and inquiry logs'}
           </p>
         </div>
 
@@ -156,11 +140,12 @@ export const GrievanceModule = () => {
         {/* Left: Scoped Ticket List */}
         <div className="rounded-xl p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
           {scopedGrievances.map((grv) => {
-            const isSelected = selectedTicket?.id === grv.id;
+            const grvId = grv.grievance_id || grv.id;
+            const isSelected = currentTicketId === grvId;
 
             return (
               <div
-                key={grv.id}
+                key={grvId}
                 onClick={() => setSelectedTicket(grv)}
                 className={`p-3 rounded-lg cursor-pointer transition border text-xs space-y-1 ${
                   isSelected
@@ -169,10 +154,10 @@ export const GrievanceModule = () => {
                 }`}
               >
                 <div className="flex justify-between items-center">
-                  <span className="font-mono text-slate-400">{grv.ticket_no}</span>
-                  <Badge variant="neutral" size="xs">{grv.status}</Badge>
+                  <span className="font-mono text-slate-400 text-[10px]">{grvId}</span>
+                  <Badge variant={grv.status === 'resolved' ? 'success' : 'warning'} size="xs">{grv.status}</Badge>
                 </div>
-                <h4 className="font-semibold text-slate-900 dark:text-white">{grv.subject}</h4>
+                <h4 className="font-semibold text-slate-900 dark:text-white truncate">{grv.subject}</h4>
                 <p className="text-slate-400 text-[11px] line-clamp-1">{grv.description}</p>
               </div>
             );
@@ -188,7 +173,7 @@ export const GrievanceModule = () => {
             <div>
               <div className="flex justify-between items-start pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div>
-                  <span className="text-[10px] font-mono text-slate-400">{selectedTicket.ticket_no}</span>
+                  <span className="text-[10px] font-mono text-slate-400">{currentTicketId}</span>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">{selectedTicket.subject}</h3>
                   <p className="text-xs text-slate-500 mt-1">{selectedTicket.description}</p>
                 </div>
@@ -206,28 +191,31 @@ export const GrievanceModule = () => {
               {/* Messages */}
               <div className="space-y-3 py-4 max-h-64 overflow-y-auto">
                 {activeTicketComms.map((comm) => {
-                  const emp = employees.find(e => e.id === comm.sender_id);
-                  const prof = profiles.find(p => p.id === emp?.profile_id);
+                  const emp = employees.find(e => (e.employee_id || e.id) === comm.sender_id);
+                  const senderName = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() : comm.sender_id;
 
                   return (
                     <div key={comm.id} className="text-xs space-y-0.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
                       <div className="flex justify-between font-medium text-slate-800 dark:text-slate-200">
-                        <span>{prof?.full_name}</span>
+                        <span>{senderName}</span>
                         <span className="text-[10px] text-slate-400">
-                          {new Date(comm.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {comm.created_at ? new Date(comm.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent'}
                         </span>
                       </div>
                       <p className="text-slate-600 dark:text-slate-400">{comm.message}</p>
                     </div>
                   );
                 })}
+                {activeTicketComms.length === 0 && (
+                  <p className="text-xs text-slate-400 py-3 text-center">No messages exchanged yet.</p>
+                )}
               </div>
             </div>
 
             <form onSubmit={handleSendReply} className="flex space-x-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               <input
                 type="text"
-                placeholder="Reply..."
+                placeholder="Write a message or update..."
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-500"
@@ -245,7 +233,7 @@ export const GrievanceModule = () => {
       </div>
 
       {/* New Ticket Modal */}
-      <Modal isOpen={isNewTicketModalOpen} onClose={() => setIsNewTicketModalOpen(false)} title="New Ticket" maxWidth="max-w-md">
+      <Modal isOpen={isNewTicketModalOpen} onClose={() => setIsNewTicketModalOpen(false)} title="New Grievance Ticket" maxWidth="max-w-md">
         <form onSubmit={handleCreateTicket} className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Category</label>
@@ -254,10 +242,10 @@ export const GrievanceModule = () => {
               onChange={(e) => setTicketForm({ ...ticketForm, category: e.target.value })}
               className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
             >
-              <option value="Workplace Ergonomics">Workplace Ergonomics</option>
+              <option value="Workplace Environment">Workplace Environment</option>
               <option value="Payroll & Reimbursements">Payroll & Reimbursements</option>
-              <option value="Policy & Workplace Culture">Policy & Working Hours</option>
-              <option value="General">General</option>
+              <option value="Working Hours & Shifts">Working Hours & Shifts</option>
+              <option value="General Query">General Inquiry</option>
             </select>
           </div>
 
@@ -274,11 +262,11 @@ export const GrievanceModule = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Description</label>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Details</label>
             <textarea
               rows={3}
               required
-              placeholder="Details..."
+              placeholder="Describe your situation in detail..."
               value={ticketForm.description}
               onChange={(e) => setTicketForm({ ...ticketForm, description: e.target.value })}
               className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"

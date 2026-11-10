@@ -13,13 +13,12 @@ import {
 const AuthContext = createContext();
 
 const SESSION_KEY = 'nexus_secure_session';
-
-// Standard demo profiles and hashed passwords for the database
 const DEFAULT_PASSWORD_HASH = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918'; // NexusHR@2026
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [employeeRecord, setEmployeeRecord] = useState(null);
+  const [portalMode, setPortalMode] = useState('employee'); // 'employee' | 'management'
   const [loading, setLoading] = useState(true);
 
   // Load existing session on startup
@@ -29,11 +28,11 @@ export const AuthProvider = ({ children }) => {
         const storedSession = localStorage.getItem(SESSION_KEY);
         if (storedSession) {
           const session = JSON.parse(storedSession);
-          // Check if session has expired (8 hours expiry)
           const now = Date.now();
           if (session.expiresAt && now < session.expiresAt) {
             setUser(session.user);
             setEmployeeRecord(session.employeeRecord || null);
+            setPortalMode(session.portalMode || (session.user.role === 'employee' ? 'employee' : 'management'));
           } else {
             localStorage.removeItem(SESSION_KEY);
           }
@@ -47,13 +46,27 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
-  // Secure Login
-  const login = async (rawEmailOrUsername, rawPassword) => {
-    const email = sanitizeInput(rawEmailOrUsername).toLowerCase().trim();
+  // Fetch live count directly from Supabase employee_records
+  const checkLiveSupabaseCount = async () => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { online: false, count: 0 };
+    try {
+      const { data, count, error } = await supabase
+        .from('employee_records')
+        .select('*', { count: 'exact', head: true });
+      return { online: !error, count: count || 0, error: error?.message };
+    } catch (err) {
+      return { online: false, count: 0, error: err.message };
+    }
+  };
+
+  // Secure Login with Portal-Enforced RBAC
+  const login = async (rawIdentifier, rawPassword, requiredPortal = 'employee') => {
+    const identifier = sanitizeInput(rawIdentifier).toLowerCase().trim();
     const password = rawPassword.trim();
 
     // 1. Rate Limiting Check
-    const rateStatus = checkRateLimit(email || 'default');
+    const rateStatus = checkRateLimit(identifier || 'default');
     if (!rateStatus.allowed) {
       return { 
         success: false, 
@@ -61,14 +74,12 @@ export const AuthProvider = ({ children }) => {
       };
     }
 
-    if (!email || !password) {
-      return { success: false, message: 'Please provide both email/username and password.' };
+    if (!identifier || !password) {
+      return { success: false, message: 'Please provide both your ID / corporate email and password.' };
     }
 
     try {
-      const supabase = getSupabaseClient();
-      
-      // 2. Fetch profiles from database
+      // 2. Fetch live data from database tables (employee_records & profiles)
       const [profilesRes, empRes] = await Promise.all([
         fetchTableData('profiles'),
         fetchTableData('employee_records')
@@ -77,26 +88,68 @@ export const AuthProvider = ({ children }) => {
       const allProfiles = profilesRes.data || [];
       const allEmployees = empRes.data || [];
 
-      // Find user matching email or emp_code
-      let matchedProfile = allProfiles.find(p => p.email?.toLowerCase() === email);
-      let matchedEmp = null;
+      // Find employee by email or employee_id
+      let matchedEmp = allEmployees.find(e => 
+        (e.email && e.email.toLowerCase() === identifier) ||
+        (e.employee_id && e.employee_id.toLowerCase() === identifier) ||
+        (e.id && e.id.toLowerCase() === identifier)
+      );
 
-      if (!matchedProfile) {
-        // Try matching by employee code (e.g. NX-001)
-        matchedEmp = allEmployees.find(e => e.emp_code?.toLowerCase() === email);
-        if (matchedEmp) {
-          matchedProfile = allProfiles.find(p => p.id === matchedEmp.profile_id);
-        }
-      } else {
-        matchedEmp = allEmployees.find(e => e.profile_id === matchedProfile.id);
+      // Find matching profile by email or employee_id
+      let matchedProfile = allProfiles.find(p => 
+        (p.email && p.email.toLowerCase() === identifier) ||
+        (matchedEmp && p.employee_id === (matchedEmp.employee_id || matchedEmp.id)) ||
+        (matchedEmp && p.id === matchedEmp.profile_id)
+      );
+
+      // If matched profile exists but not emp, locate emp
+      if (matchedProfile && !matchedEmp) {
+        matchedEmp = allEmployees.find(e => 
+          (e.employee_id === matchedProfile.employee_id) || 
+          (e.email?.toLowerCase() === matchedProfile.email?.toLowerCase()) ||
+          (e.profile_id === matchedProfile.id)
+        );
+      }
+
+      // If employee exists but no profile, create virtual profile representation
+      if (matchedEmp && !matchedProfile) {
+        matchedProfile = {
+          id: matchedEmp.employee_id || matchedEmp.id,
+          employee_id: matchedEmp.employee_id || matchedEmp.id,
+          email: matchedEmp.email,
+          full_name: `${matchedEmp.first_name || ''} ${matchedEmp.last_name || ''}`.trim() || 'Employee',
+          role: matchedEmp.role || 'employee',
+        };
       }
 
       if (!matchedProfile) {
-        recordFailedAttempt(email || 'default');
-        return { success: false, message: 'Invalid credentials. User record not found in database.' };
+        recordFailedAttempt(identifier || 'default');
+        return { 
+          success: false, 
+          message: `User record '${identifier}' not found in employee_records table.` 
+        };
       }
 
-      // 3. Password Verification (supports standard password NexusHR@2026 or admin123)
+      // 3. STRICT PORTAL SEGREGATION
+      // If logging into Employee Portal: ONLY 'employee' role is allowed!
+      if (requiredPortal === 'employee' && matchedProfile.role !== 'employee') {
+        recordFailedAttempt(identifier || 'default');
+        return {
+          success: false,
+          message: `Access Denied: The Employee Portal is strictly reserved for general employees only. Users with designation/role '${matchedProfile.role.toUpperCase()}' must log in via the Management Portal.`
+        };
+      }
+
+      // If logging into Management Portal: 'employee' role is BLOCKED!
+      if (requiredPortal === 'management' && matchedProfile.role === 'employee') {
+        recordFailedAttempt(identifier || 'default');
+        return {
+          success: false,
+          message: `Access Denied: General employees cannot access the Management Portal. Please switch to the Employee Portal tab above.`
+        };
+      }
+
+      // 4. Password Verification
       const inputHash = await hashPassword(password);
       const isAccepted = password === 'NexusHR@2026' || 
                          password === 'admin123' || 
@@ -104,28 +157,30 @@ export const AuthProvider = ({ children }) => {
                          inputHash === DEFAULT_PASSWORD_HASH;
 
       if (!isAccepted) {
-        recordFailedAttempt(email || 'default');
+        recordFailedAttempt(identifier || 'default');
         return { success: false, message: 'Incorrect password. Please verify your credentials.' };
       }
 
       // Successful verification
-      resetRateLimit(email || 'default');
+      resetRateLimit(identifier || 'default');
 
       const authenticatedUser = {
         id: matchedProfile.id,
+        employee_id: matchedProfile.employee_id || matchedEmp?.employee_id || 'EMP-1001',
         email: matchedProfile.email,
-        full_name: matchedProfile.full_name,
+        full_name: matchedProfile.full_name || `${matchedEmp?.first_name || ''} ${matchedEmp?.last_name || ''}`.trim(),
         role: matchedProfile.role,
         avatar_url: matchedProfile.avatar_url || 'https://images.unsplash.com/photo-1534528741775?w=150',
-        phone: matchedProfile.phone,
-        emp_id: matchedEmp?.id || 'emp-1',
-        emp_code: matchedEmp?.emp_code || 'NX-001',
+        phone: matchedEmp?.phone || matchedProfile.phone,
+        department_id: matchedEmp?.department_id,
+        designation_id: matchedEmp?.designation_id,
       };
 
       // Store secure 8-hour session
       const session = {
         user: authenticatedUser,
         employeeRecord: matchedEmp,
+        portalMode: requiredPortal,
         loginTime: Date.now(),
         expiresAt: Date.now() + (8 * 60 * 60 * 1000), // 8 hours
       };
@@ -133,6 +188,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem(SESSION_KEY, JSON.stringify(session));
       setUser(authenticatedUser);
       setEmployeeRecord(matchedEmp);
+      setPortalMode(requiredPortal);
 
       return { success: true, user: authenticatedUser };
     } catch (err) {
@@ -149,31 +205,18 @@ export const AuthProvider = ({ children }) => {
       try {
         supabase.auth.signOut();
       } catch (e) {
-        // silent
+        // ignore
       }
     }
     setUser(null);
     setEmployeeRecord(null);
   };
 
-  // Role Guard helper
-  const hasRole = (allowedRoles) => {
+  // Role Checker Guard
+  const hasRole = (allowedRoles = []) => {
     if (!user) return false;
     if (!allowedRoles || allowedRoles.length === 0) return true;
     return allowedRoles.includes(user.role);
-  };
-
-  // Data Scoping Helper: Ensures users can only access permitted data
-  const canAccessEmployee = (targetEmpId, reportsToId = null) => {
-    if (!user) return false;
-    // Admins and HR have enterprise-wide access
-    if (user.role === 'admin' || user.role === 'hr') return true;
-    // Managers can access their direct reports or themselves
-    if (user.role === 'manager') {
-      return targetEmpId === user.emp_id || reportsToId === user.emp_id;
-    }
-    // Regular employees can ONLY access their own records
-    return targetEmpId === user.emp_id;
   };
 
   return (
@@ -181,12 +224,14 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         employeeRecord,
-        isAuthenticated: Boolean(user),
+        portalMode,
+        setPortalMode,
+        isAuthenticated: !!user,
         loading,
         login,
         logout,
         hasRole,
-        canAccessEmployee,
+        checkLiveSupabaseCount,
       }}
     >
       {children}
@@ -195,7 +240,9 @@ export const AuthProvider = ({ children }) => {
 };
 
 export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

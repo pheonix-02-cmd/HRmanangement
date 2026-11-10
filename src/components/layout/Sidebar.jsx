@@ -8,7 +8,8 @@ import {
   CalendarDays,
   CreditCard,
   MessageSquareWarning,
-  BellRing
+  BellRing,
+  UserCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -16,14 +17,15 @@ export const navigationModules = [
   {
     id: 'dashboard',
     label: 'Overview',
+    employeeLabel: 'My Dashboard',
     icon: LayoutDashboard,
     roles: ['admin', 'hr', 'manager', 'employee', 'recruiter'],
   },
   {
     id: 'employee',
-    label: 'Employees',
+    label: 'Employee Directory',
     icon: Users,
-    roles: ['admin', 'hr', 'manager', 'employee', 'recruiter'],
+    roles: ['admin', 'hr', 'manager', 'recruiter'], // Restricted: not visible to employee
   },
   {
     id: 'organization',
@@ -39,38 +41,44 @@ export const navigationModules = [
   },
   {
     id: 'attendance',
-    label: 'Attendance',
+    label: 'Attendance Records',
+    employeeLabel: 'My Attendance',
     icon: Clock,
     roles: ['admin', 'hr', 'manager', 'employee'],
   },
   {
     id: 'leave',
-    label: 'Leaves',
+    label: 'Leave Management',
+    employeeLabel: 'My Leaves',
     icon: CalendarDays,
     roles: ['admin', 'hr', 'manager', 'employee'],
   },
   {
     id: 'payroll',
-    label: 'Payroll',
+    label: 'Payroll Operations',
+    employeeLabel: 'My Payslips',
     icon: CreditCard,
     roles: ['admin', 'hr', 'employee'],
   },
   {
     id: 'grievance',
-    label: 'Grievances',
+    label: 'Grievance Redressal',
+    employeeLabel: 'My Grievances',
     icon: MessageSquareWarning,
     roles: ['admin', 'hr', 'manager', 'employee'],
   },
   {
     id: 'notifications',
     label: 'Announcements',
+    employeeLabel: 'Company Notices',
     icon: BellRing,
     roles: ['admin', 'hr', 'manager', 'employee', 'recruiter'],
   },
 ];
 
 export const Sidebar = ({ currentTab, setCurrentTab, isMobileOpen, onCloseMobile }) => {
-  const { hasRole, user } = useAuth();
+  const { hasRole, user, portalMode } = useAuth();
+  const isEmployeeMode = user?.role === 'employee';
 
   const handleNavClick = (tabId, isAllowed) => {
     if (!isAllowed) return;
@@ -103,20 +111,34 @@ export const Sidebar = ({ currentTab, setCurrentTab, isMobileOpen, onCloseMobile
                 <span className="font-bold text-base text-slate-900 dark:text-white leading-none block">
                   Nexus<span className="text-teal-600 dark:text-teal-400">HR</span>
                 </span>
-                <span className="text-[10px] text-slate-400">Human Resources</span>
+                <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold tracking-wide">
+                  {isEmployeeMode ? 'Employee Portal' : 'Management Portal'}
+                </span>
               </div>
             </div>
           </div>
 
+          {/* Section Indicator */}
+          <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+            <span className="uppercase font-bold tracking-wider">
+              {isEmployeeMode ? 'Staff Self-Service' : 'Enterprise Modules'}
+            </span>
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-300">
+              {user?.role}
+            </span>
+          </div>
+
           {/* Nav List */}
-          <div className="px-3 py-4 space-y-1">
+          <div className="px-3 py-3 space-y-1">
             {navigationModules.map((item) => {
               const Icon = item.icon;
               const isActive = currentTab === item.id;
               const isAllowed = hasRole(item.roles);
 
-              // If role is not allowed, do not show in menu to prevent unauthorized probing
+              // Strictly filter out non-employee modules
               if (!isAllowed) return null;
+
+              const displayLabel = isEmployeeMode && item.employeeLabel ? item.employeeLabel : item.label;
 
               return (
                 <button
@@ -129,21 +151,21 @@ export const Sidebar = ({ currentTab, setCurrentTab, isMobileOpen, onCloseMobile
                   }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-teal-600 dark:text-teal-400' : 'text-slate-400'}`} />
-                  <span>{item.label}</span>
+                  <span>{displayLabel}</span>
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Clean Footer with active role badge */}
+        {/* Footer with employee_id directly from database */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
           <div>
-            <p className="font-medium text-slate-600 dark:text-slate-300">{user?.full_name}</p>
-            <p className="text-[10px] uppercase font-mono text-teal-600 dark:text-teal-400">{user?.role}</p>
+            <p className="font-medium text-slate-700 dark:text-slate-200 truncate max-w-[110px]">{user?.full_name}</p>
+            <p className="text-[10px] text-slate-400 font-mono truncate max-w-[110px]">{user?.email}</p>
           </div>
-          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-slate-500">
-            {user?.emp_code}
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-slate-500 shrink-0">
+            {user?.employee_id || 'ID'}
           </span>
         </div>
       </aside>

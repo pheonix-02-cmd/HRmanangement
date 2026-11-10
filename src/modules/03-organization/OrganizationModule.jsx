@@ -15,8 +15,8 @@ export const OrganizationModule = () => {
   const [isAddDeptModalOpen, setIsAddDeptModalOpen] = useState(false);
   const [isAddDesModalOpen, setIsAddDesModalOpen] = useState(false);
 
-  const [deptForm, setDeptForm] = useState({ name: '', code: '', budget: '', description: '' });
-  const [desForm, setDesForm] = useState({ title: '', department_id: '', level: 'L3', min_salary: '', max_salary: '' });
+  const [deptForm, setDeptForm] = useState({ name: '', description: '' });
+  const [desForm, setDesForm] = useState({ title: '', department_id: '', description: '' });
 
   const loadData = async () => {
     const [dRes, desRes, eRes, pRes] = await Promise.all([
@@ -31,8 +31,9 @@ export const OrganizationModule = () => {
     setEmployees(eRes.data || []);
     setProfiles(pRes.data || []);
     if (depts.length > 0 && !selectedDeptId) {
-      setSelectedDeptId(depts[0].id);
-      setDesForm(prev => ({ ...prev, department_id: depts[0].id }));
+      const firstId = depts[0].department_id || depts[0].id;
+      setSelectedDeptId(firstId);
+      setDesForm(prev => ({ ...prev, department_id: firstId }));
     }
   };
 
@@ -42,41 +43,38 @@ export const OrganizationModule = () => {
 
   const handleCreateDept = async (e) => {
     e.preventDefault();
+    const newId = `dept-${Date.now().toString().slice(-4)}`;
     const newDept = {
-      id: `dept-${Date.now().toString().slice(-4)}`,
-      name: sanitizeInput(deptForm.name),
-      code: sanitizeInput(deptForm.code).toUpperCase(),
-      budget: parseFloat(deptForm.budget) || 0,
+      department_id: newId,
+      department_name: sanitizeInput(deptForm.name),
       description: sanitizeInput(deptForm.description),
-      head_id: null,
       created_at: new Date().toISOString()
     };
     await insertTableRow('departments', newDept);
     setIsAddDeptModalOpen(false);
-    setDeptForm({ name: '', code: '', budget: '', description: '' });
+    setDeptForm({ name: '', description: '' });
     await loadData();
   };
 
   const handleCreateDes = async (e) => {
     e.preventDefault();
+    const newId = `des-${Date.now().toString().slice(-4)}`;
     const newDes = {
-      id: `des-${Date.now().toString().slice(-4)}`,
-      title: sanitizeInput(desForm.title),
-      department_id: desForm.department_id || selectedDeptId,
-      level: desForm.level,
-      min_salary: parseFloat(desForm.min_salary) || 0,
-      max_salary: parseFloat(desForm.max_salary) || 0,
+      designation_id: newId,
+      designation_name: sanitizeInput(desForm.title),
+      description: sanitizeInput(desForm.description),
       created_at: new Date().toISOString()
     };
     await insertTableRow('designations', newDes);
     setIsAddDesModalOpen(false);
-    setDesForm({ title: '', department_id: selectedDeptId, level: 'L3', min_salary: '', max_salary: '' });
+    setDesForm({ title: '', department_id: selectedDeptId, description: '' });
     await loadData();
   };
 
-  const selectedDepartment = departments.find(d => d.id === selectedDeptId) || departments[0];
-  const deptDesignations = designations.filter(d => d.department_id === selectedDepartment?.id);
-  const deptEmployees = employees.filter(e => e.department_id === selectedDepartment?.id);
+  const selectedDepartment = departments.find(d => (d.department_id || d.id) === selectedDeptId) || departments[0];
+  const curDeptId = selectedDepartment?.department_id || selectedDepartment?.id;
+  const deptDesignations = designations;
+  const deptEmployees = employees.filter(e => e.department_id === curDeptId);
 
   return (
     <div className="space-y-6">
@@ -85,10 +83,10 @@ export const OrganizationModule = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-            Departments & Designations
+            Departments & Roles
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Organizational hierarchy and role definitions
+            Enterprise business units and designations from database
           </p>
         </div>
 
@@ -112,13 +110,15 @@ export const OrganizationModule = () => {
       {/* Department Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
         {departments.map((dept) => {
-          const empCount = employees.filter(e => e.department_id === dept.id).length;
-          const isSelected = dept.id === selectedDepartment?.id;
+          const deptId = dept.department_id || dept.id;
+          const deptName = dept.department_name || dept.name;
+          const empCount = employees.filter(e => e.department_id === deptId).length;
+          const isSelected = deptId === curDeptId;
 
           return (
             <div
-              key={dept.id}
-              onClick={() => setSelectedDeptId(dept.id)}
+              key={deptId}
+              onClick={() => setSelectedDeptId(deptId)}
               className={`cursor-pointer rounded-xl p-3.5 transition border ${
                 isSelected
                   ? 'bg-teal-50/50 dark:bg-teal-950/30 border-teal-500 ring-1 ring-teal-500/20'
@@ -127,7 +127,7 @@ export const OrganizationModule = () => {
             >
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                  {dept.code}
+                  {deptId}
                 </span>
                 <span className="text-xs text-slate-400 flex items-center">
                   <Users className="w-3.5 h-3.5 mr-1" /> {empCount}
@@ -135,7 +135,7 @@ export const OrganizationModule = () => {
               </div>
 
               <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                {dept.name}
+                {deptName}
               </h4>
             </div>
           );
@@ -149,18 +149,18 @@ export const OrganizationModule = () => {
           <div className="rounded-xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                {selectedDepartment.name}
+                {selectedDepartment.department_name || selectedDepartment.name}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                {selectedDepartment.description}
+                {selectedDepartment.description || 'Organizational business unit.'}
               </p>
             </div>
 
             <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800 space-y-2 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-400">Budget</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  ₹{Number(selectedDepartment.budget).toLocaleString('en-IN')}
+                <span className="text-slate-400">Department ID</span>
+                <span className="font-mono text-slate-800 dark:text-slate-200">
+                  {curDeptId}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -172,26 +172,32 @@ export const OrganizationModule = () => {
             </div>
 
             <div className="pt-2">
-              <h4 className="text-xs font-semibold text-slate-400 uppercase mb-2">Team Members</h4>
+              <h4 className="text-xs font-semibold text-slate-400 uppercase mb-2">Department Staff</h4>
               <div className="space-y-1.5">
-                {deptEmployees.map((e) => {
-                  const prof = profiles.find(p => p.id === e.profile_id);
-                  const des = designations.find(d => d.id === e.designation_id);
+                {deptEmployees.length > 0 ? deptEmployees.map((e) => {
+                  const empId = e.employee_id || e.id;
+                  const prof = profiles.find(p => p.employee_id === empId || p.id === e.profile_id);
+                  const des = designations.find(d => (d.designation_id || d.id) === e.designation_id);
+                  const name = prof?.full_name || `${e.first_name || ''} ${e.last_name || ''}`.trim() || 'Staff';
                   return (
-                    <div key={e.id} className="flex items-center space-x-2 py-1 text-xs">
-                      <img src={prof?.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover" />
-                      <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{prof?.full_name}</span>
-                      <span className="text-slate-400 text-[10px] ml-auto">{des?.title}</span>
+                    <div key={empId} className="flex items-center space-x-2 py-1 text-xs">
+                      <div className="w-6 h-6 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 flex items-center justify-center font-bold text-[10px]">
+                        {(e.first_name?.[0] || name[0]).toUpperCase()}
+                      </div>
+                      <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{name}</span>
+                      <span className="text-slate-400 text-[10px] ml-auto">{des?.designation_name || des?.title || 'Employee'}</span>
                     </div>
                   );
-                })}
+                }) : (
+                  <p className="text-xs text-slate-400">No staff assigned to this department.</p>
+                )}
               </div>
             </div>
           </div>
 
           <div className="lg:col-span-2 rounded-xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Designations & Levels</h3>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Designations Registry</h3>
               <button
                 onClick={() => setIsAddDesModalOpen(true)}
                 className="text-xs font-medium text-teal-600 dark:text-teal-400 hover:underline"
@@ -201,26 +207,25 @@ export const OrganizationModule = () => {
             </div>
 
             <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-              {deptDesignations.map((des) => (
-                <div
-                  key={des.id}
-                  className="py-3 flex items-center justify-between"
-                >
-                  <div className="flex items-center space-x-2.5">
-                    <span className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs flex items-center justify-center font-mono">
-                      {des.level}
-                    </span>
+              {designations.map((des) => {
+                const desId = des.designation_id || des.id;
+                const desName = des.designation_name || des.title;
+                return (
+                  <div
+                    key={desId}
+                    className="py-3 flex items-center justify-between"
+                  >
                     <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-white">{des.title}</h4>
-                      <span className="text-[10px] text-slate-400">Level {des.level}</span>
+                      <h4 className="font-semibold text-slate-900 dark:text-white">{desName}</h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{des.description || 'Enterprise role definition.'}</p>
+                    </div>
+
+                    <div className="font-mono text-slate-500 dark:text-slate-400 text-xs text-right">
+                      <span>{desId}</span>
                     </div>
                   </div>
-
-                  <div className="font-mono text-slate-600 dark:text-slate-300 text-right">
-                    <span>₹{(des.min_salary / 100000).toFixed(1)}L - ₹{(des.max_salary / 100000).toFixed(1)}L</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -242,28 +247,15 @@ export const OrganizationModule = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Code</label>
-              <input
-                type="text"
-                required
-                placeholder="QA"
-                value={deptForm.code}
-                onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value })}
-                className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 uppercase"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Annual Budget (₹)</label>
-              <input
-                type="number"
-                placeholder="5000000"
-                value={deptForm.budget}
-                onChange={(e) => setDeptForm({ ...deptForm, budget: e.target.value })}
-                className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Description</label>
+            <textarea
+              rows={3}
+              placeholder="Brief description of department function..."
+              value={deptForm.description}
+              onChange={(e) => setDeptForm({ ...deptForm, description: e.target.value })}
+              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+            />
           </div>
 
           <div className="flex justify-end space-x-2 pt-2">
@@ -285,10 +277,10 @@ export const OrganizationModule = () => {
       </Modal>
 
       {/* Add Designation Modal */}
-      <Modal isOpen={isAddDesModalOpen} onClose={() => setIsAddDesModalOpen(false)} title="New Designation">
+      <Modal isOpen={isAddDesModalOpen} onClose={() => setIsAddDesModalOpen(false)} title="New Designation / Role">
         <form onSubmit={handleCreateDes} className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Title</label>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Designation Title</label>
             <input
               type="text"
               required
@@ -299,35 +291,15 @@ export const OrganizationModule = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Level</label>
-              <select
-                value={desForm.level}
-                onChange={(e) => setDesForm({ ...desForm, level: e.target.value })}
-                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
-              >
-                <option value="L1">L1 — Junior</option>
-                <option value="L2">L2 — Associate</option>
-                <option value="L3">L3 — Professional</option>
-                <option value="L4">L4 — Senior</option>
-                <option value="L5">L5 — Lead</option>
-                <option value="L6">L6 — Principal</option>
-                <option value="L7">L7 — Director</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Department</label>
-              <select
-                value={desForm.department_id || selectedDeptId}
-                onChange={(e) => setDesForm({ ...desForm, department_id: e.target.value })}
-                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
-              >
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Description</label>
+            <textarea
+              rows={3}
+              placeholder="Role description, responsibilities..."
+              value={desForm.description}
+              onChange={(e) => setDesForm({ ...desForm, description: e.target.value })}
+              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+            />
           </div>
 
           <div className="flex justify-end space-x-2 pt-2">
@@ -342,7 +314,7 @@ export const OrganizationModule = () => {
               type="submit"
               className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700"
             >
-              Save Role
+              Save Designation
             </button>
           </div>
         </form>

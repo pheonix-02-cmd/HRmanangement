@@ -121,7 +121,7 @@ export const Navbar = ({ onToggleMobileSidebar, currentTab, setCurrentTab }) => 
                     <span className="font-semibold text-slate-900 dark:text-white">{user.full_name}</span>
                     <span className="text-[11px] text-slate-500 block truncate">{user.email}</span>
                     <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded font-mono bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300">
-                      ID: {user.emp_code}
+                      ID: {user.employee_id || user.id}
                     </span>
                   </div>
 

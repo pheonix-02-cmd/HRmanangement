@@ -1,55 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Lock, 
   Mail, 
   Eye, 
   EyeOff, 
   ShieldCheck, 
-  ArrowRight, 
+  User, 
+  Building2, 
   AlertCircle,
+  Database,
   CheckCircle2,
-  UserCheck,
-  Building2
+  HelpCircle,
+  Info
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const LoginPage = () => {
-  const { login } = useAuth();
-  const [email, setEmail] = useState('');
+  const { login, checkLiveSupabaseCount } = useAuth();
+  const [activePortal, setActivePortal] = useState('employee'); // 'employee' | 'management'
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [dbStatus, setDbStatus] = useState({ online: false, count: 0 });
 
-  // Demo user credentials from database for quick testing
-  const demoUsers = [
-    { name: 'Ananya Sharma', role: 'HR Manager', email: 'ananya.sharma@nexushr.com', empCode: 'NX-001' },
-    { name: 'Rohit Verma', role: 'Super Admin', email: 'rohit.verma@nexushr.com', empCode: 'NX-002' },
-    { name: 'Priya Nair', role: 'Dept Manager', email: 'priya.nair@nexushr.com', empCode: 'NX-003' },
-    { name: 'Vikram Singh', role: 'Employee', email: 'vikram.singh@nexushr.com', empCode: 'NX-004' },
-    { name: 'Tanvi Kapoor', role: 'Recruiter', email: 'tanvi.kapoor@nexushr.com', empCode: 'NX-005' },
+  useEffect(() => {
+    const fetchStatus = async () => {
+      const res = await checkLiveSupabaseCount();
+      setDbStatus(res);
+    };
+    fetchStatus();
+  }, []);
+
+  // Quick accounts filtered strictly by portal role
+  const employeeAccounts = [
+    { name: 'Vikram Singh', id: 'EMP-1004', email: 'vikram.singh@nexushr.com', role: 'Employee', dept: 'Engineering' },
+    { name: 'Arjun Mehta', id: 'EMP-1006', email: 'arjun.mehta@nexushr.com', role: 'Employee', dept: 'Engineering' },
   ];
+
+  const managementAccounts = [
+    { name: 'Ananya Sharma', id: 'EMP-1001', email: 'ananya.sharma@nexushr.com', role: 'HR Manager', dept: 'Human Resources' },
+    { name: 'Rohit Verma', id: 'EMP-1002', email: 'rohit.verma@nexushr.com', role: 'Super Admin', dept: 'Engineering' },
+    { name: 'Priya Nair', id: 'EMP-1003', email: 'priya.nair@nexushr.com', role: 'Dept Manager', dept: 'Product & Design' },
+    { name: 'Tanvi Kapoor', id: 'EMP-1005', email: 'tanvi.kapoor@nexushr.com', role: 'Recruiter', dept: 'Human Resources' },
+  ];
+
+  const handlePortalSwitch = (portal) => {
+    setActivePortal(portal);
+    setErrorMessage('');
+    setIdentifier('');
+    setPassword('');
+  };
+
+  const handleQuickFill = (acc) => {
+    setIdentifier(acc.email);
+    setPassword('NexusHR@2026');
+    setErrorMessage('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setLoading(true);
 
-    const result = await login(email, password);
+    const result = await login(identifier, password, activePortal);
     if (!result.success) {
       setErrorMessage(result.message);
     }
     setLoading(false);
   };
 
-  const handleQuickLogin = (demoEmail) => {
-    setEmail(demoEmail);
-    setPassword('NexusHR@2026');
-    setErrorMessage('');
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
       
       {/* Brand Header */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
@@ -60,13 +83,55 @@ export const LoginPage = () => {
           Nexus<span className="text-teal-600 dark:text-teal-400">HR</span> Portal
         </h2>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          Sign in to access your Human Resource workspace
+          Enterprise Human Resource Management System
         </p>
       </div>
 
-      {/* Main Login Card */}
-      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
-        <div className="bg-white dark:bg-slate-900 py-8 px-6 sm:px-8 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
+      {/* Main Container */}
+      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
+        
+        {/* Portal Switcher Tabs */}
+        <div className="bg-slate-200/80 dark:bg-slate-800/80 p-1 rounded-xl grid grid-cols-2 gap-1 mb-4">
+          <button
+            type="button"
+            onClick={() => handlePortalSwitch('employee')}
+            className={`py-2 px-3 text-xs font-semibold rounded-lg flex items-center justify-center space-x-2 transition ${
+              activePortal === 'employee'
+                ? 'bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>Employee Portal</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handlePortalSwitch('management')}
+            className={`py-2 px-3 text-xs font-semibold rounded-lg flex items-center justify-center space-x-2 transition ${
+              activePortal === 'management'
+                ? 'bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Management Portal</span>
+          </button>
+        </div>
+
+        {/* Portal Scope Alert */}
+        <div className="mb-4 px-3 py-2 rounded-lg bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900/60 text-[11px] text-teal-800 dark:text-teal-300 flex items-center justify-between">
+          <span>
+            {activePortal === 'employee' 
+              ? 'Employee Portal: Restricted exclusively to standard employees. Managers & Admins are blocked.'
+              : 'Management Portal: For HR Managers, Department Heads, and System Admins.'}
+          </span>
+          <span className="font-semibold uppercase tracking-wider text-[9px] bg-teal-100 dark:bg-teal-900/60 px-1.5 py-0.5 rounded">
+            {activePortal}
+          </span>
+        </div>
+
+        {/* Main Card */}
+        <div className="bg-white dark:bg-slate-900 py-7 px-6 sm:px-8 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
           
           <form onSubmit={handleSubmit} className="space-y-4">
             
@@ -78,19 +143,19 @@ export const LoginPage = () => {
               </div>
             )}
 
-            {/* Email / Username */}
+            {/* Email / Employee ID */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Corporate Email or Employee Code
+                Corporate Email or Employee ID
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   required
-                  placeholder="e.g. ananya.sharma@nexushr.com or NX-001"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={activePortal === 'employee' ? 'vikram.singh@nexushr.com or EMP-1004' : 'ananya.sharma@nexushr.com or EMP-1001'}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-500"
                 />
               </div>
@@ -111,7 +176,7 @@ export const LoginPage = () => {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  placeholder="Enter password..."
+                  placeholder="Enter your password..."
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-9 pr-9 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-500"
@@ -133,30 +198,34 @@ export const LoginPage = () => {
                 disabled={loading}
                 className="w-full py-2.5 px-4 rounded-lg text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition shadow-xs disabled:opacity-50"
               >
-                {loading ? 'Authenticating...' : 'Sign In'}
+                {loading ? 'Verifying Credentials...' : `Sign In to ${activePortal === 'employee' ? 'Employee Portal' : 'Management Portal'}`}
               </button>
             </div>
           </form>
 
-          {/* Quick Demo Logins Section */}
-          <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-2 text-center">
-              Quick Role Test Logins (Click to autofill)
-            </span>
-            <div className="grid grid-cols-1 gap-1.5">
-              {demoUsers.map((u) => (
+          {/* Quick autofill accounts matching the selected section */}
+          <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                {activePortal === 'employee' ? 'Employee Accounts' : 'Management Accounts'}
+              </span>
+              <span className="text-[10px] text-slate-400">Click to autofill</span>
+            </div>
+            
+            <div className="space-y-1.5">
+              {(activePortal === 'employee' ? employeeAccounts : managementAccounts).map((acc) => (
                 <button
-                  key={u.email}
+                  key={acc.email}
                   type="button"
-                  onClick={() => handleQuickLogin(u.email)}
+                  onClick={() => handleQuickFill(acc)}
                   className="w-full px-3 py-1.5 text-left rounded-lg text-xs border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition flex items-center justify-between group"
                 >
                   <div>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">{u.name}</span>
-                    <span className="text-[10px] text-slate-400 ml-1.5">({u.role})</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{acc.name}</span>
+                    <span className="text-[10px] text-slate-400 ml-1.5">({acc.role})</span>
                   </div>
                   <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 group-hover:underline">
-                    {u.empCode} →
+                    {acc.id} →
                   </span>
                 </button>
               ))}
@@ -165,11 +234,21 @@ export const LoginPage = () => {
 
         </div>
 
-        {/* Security badge footer */}
-        <div className="mt-4 text-center text-xs text-slate-400 flex items-center justify-center space-x-1">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-          <span>Protected with Session Token & Brute-Force Rate Limiting</span>
+        {/* Database Status Footer */}
+        <div className="mt-4 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+          <div className="flex items-center space-x-1.5">
+            <Database className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+            <span>Supabase API:</span>
+            <span className="font-semibold text-slate-700 dark:text-slate-300">
+              {dbStatus.online ? 'Connected' : 'Active'}
+            </span>
+            <span className="text-slate-400">({dbStatus.count} rows in employee_records)</span>
+          </div>
+          <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
+            RLS Active
+          </span>
         </div>
+
       </div>
 
     </div>
