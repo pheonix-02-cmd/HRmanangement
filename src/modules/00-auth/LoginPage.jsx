@@ -193,7 +193,7 @@ export const LoginPage = () => {
             </span>
           </div>
           <span className="font-mono text-[10px] text-teal-600 dark:text-teal-400">
-            employee_records connected
+            {dbStatus.count > 0 ? `${dbStatus.count} employees connected` : 'Live DB connected'}
           </span>
         </div>
 

@@ -142,20 +142,22 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      // If employee exists in database but no separate profile record, synthesize profile
-      if (matchedEmp && !matchedProfile) {
-        // Designate role: management for head designations or EMP001-EMP003, otherwise employee
-        let assignedRole = 'employee';
-        if (matchedEmp.role) {
-          assignedRole = matchedEmp.role;
-        } else if (matchedEmp.employee_id === 'EMP001' || matchedEmp.designation_id === 'des-hr-vp') {
-          assignedRole = 'hr';
-        } else if (matchedEmp.employee_id === 'EMP002' || matchedEmp.designation_id === 'des-eng-dir') {
-          assignedRole = 'admin';
-        } else if (matchedEmp.employee_id === 'EMP003') {
-          assignedRole = 'manager';
-        }
+      // Determine user role based on designation or profiles table
+      let assignedRole = 'employee';
+      const desId = Number(matchedEmp?.designation_id);
+      if (desId === 204 || matchedEmp?.employee_id === 'EMP001') {
+        assignedRole = 'admin'; // Vice President
+      } else if (desId === 203) {
+        assignedRole = 'admin'; // Admin
+      } else if (desId === 202) {
+        assignedRole = 'hr'; // HR Executive
+      } else if (matchedProfile?.role && matchedProfile.role.toLowerCase() !== 'employee') {
+        assignedRole = matchedProfile.role.toLowerCase();
+      } else {
+        assignedRole = 'employee'; // Software Developer / General Staff
+      }
 
+      if (!matchedProfile) {
         matchedProfile = {
           id: matchedEmp.employee_id,
           employee_id: matchedEmp.employee_id,
@@ -163,6 +165,8 @@ export const AuthProvider = ({ children }) => {
           full_name: `${matchedEmp.first_name || ''} ${matchedEmp.last_name || ''}`.trim() || 'Employee',
           role: assignedRole,
         };
+      } else {
+        matchedProfile.role = assignedRole;
       }
 
       if (!matchedEmp && !matchedProfile) {
