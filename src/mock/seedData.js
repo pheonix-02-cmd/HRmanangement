@@ -18,155 +18,84 @@ export const initialDesignations = [
   { designation_id: 'des-rec', designation_name: 'Talent Acquisition Recruiter', description: 'Manages candidate sourcing, interviews, and offer rollouts.', created_at: '2026-01-01T00:00:00Z' },
 ];
 
+// All 30 Employee Records directly matching the user's Supabase employee_records table
 export const initialEmployeeRecords = [
-  {
-    employee_id: 'EMP-1001',
-    first_name: 'Ananya',
-    last_name: 'Sharma',
-    email: 'ananya.sharma@nexushr.com',
-    department_id: 'dept-hr',
-    designation_id: 'des-hr-vp',
-    manager_id: null,
-    joining_date: '2022-01-15',
-    employment_type: 'Full-Time',
-    phone: '+91 98112 34567',
-    address: 'New Delhi, India',
-    emergency_contact: '+91 98110 00001',
-    gender: 'Female',
-    date_of_birth: '1988-04-12',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z'
-  },
-  {
-    employee_id: 'EMP-1002',
-    first_name: 'Rohit',
-    last_name: 'Verma',
-    email: 'rohit.verma@nexushr.com',
-    department_id: 'dept-eng',
-    designation_id: 'des-eng-dir',
-    manager_id: null,
-    joining_date: '2021-03-01',
-    employment_type: 'Full-Time',
-    phone: '+91 98223 45678',
-    address: 'Noida, India',
-    emergency_contact: '+91 98220 00002',
-    gender: 'Male',
-    date_of_birth: '1985-08-20',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z'
-  },
-  {
-    employee_id: 'EMP-1003',
-    first_name: 'Priya',
-    last_name: 'Nair',
-    email: 'priya.nair@nexushr.com',
-    department_id: 'dept-prd',
-    designation_id: 'des-des',
-    manager_id: 'EMP-1002',
-    joining_date: '2022-06-10',
-    employment_type: 'Full-Time',
-    phone: '+91 98334 56789',
-    address: 'Gurugram, India',
-    emergency_contact: '+91 98330 00003',
-    gender: 'Female',
-    date_of_birth: '1990-11-05',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z'
-  },
-  {
-    employee_id: 'EMP-1004',
-    first_name: 'Vikram',
-    last_name: 'Singh',
-    email: 'vikram.singh@nexushr.com',
-    department_id: 'dept-eng',
-    designation_id: 'des-swe',
-    manager_id: 'EMP-1002',
-    joining_date: '2023-08-01',
-    employment_type: 'Full-Time',
-    phone: '+91 98445 67890',
-    address: 'South Delhi, India',
-    emergency_contact: '+91 98440 00004',
-    gender: 'Male',
-    date_of_birth: '1995-02-17',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z'
-  },
-  {
-    employee_id: 'EMP-1005',
-    first_name: 'Tanvi',
-    last_name: 'Kapoor',
-    email: 'tanvi.kapoor@nexushr.com',
-    department_id: 'dept-hr',
-    designation_id: 'des-rec',
-    manager_id: 'EMP-1001',
-    joining_date: '2023-11-15',
-    employment_type: 'Full-Time',
-    phone: '+91 98556 78901',
-    address: 'Faridabad, India',
-    emergency_contact: '+91 98550 00005',
-    gender: 'Female',
-    date_of_birth: '1994-07-28',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z'
-  },
-  {
-    employee_id: 'EMP-1006',
-    first_name: 'Arjun',
-    last_name: 'Mehta',
-    email: 'arjun.mehta@nexushr.com',
-    department_id: 'dept-eng',
-    designation_id: 'des-swe',
-    manager_id: 'EMP-1002',
-    joining_date: '2024-02-01',
-    employment_type: 'Full-Time',
-    phone: '+91 98667 89012',
-    address: 'West Delhi, India',
-    emergency_contact: '+91 98660 00006',
-    gender: 'Male',
-    date_of_birth: '1997-09-14',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z'
-  }
+  { employee_id: 'EMP001', first_name: 'Ananya', last_name: 'Sharma', email: 'ananya.sharma@nexushr.com', department_id: 'dept-hr', designation_id: 'des-hr-vp', manager_id: null, joining_date: '2021-01-15', employment_type: 'Full-Time', phone: '+91 98112 00001', gender: 'Female', date_of_birth: '1988-04-12' },
+  { employee_id: 'EMP002', first_name: 'Rohit', last_name: 'Verma', email: 'rohit.verma@nexushr.com', department_id: 'dept-eng', designation_id: 'des-eng-dir', manager_id: null, joining_date: '2020-03-01', employment_type: 'Full-Time', phone: '+91 98223 00002', gender: 'Male', date_of_birth: '1985-08-20' },
+  { employee_id: 'EMP003', first_name: 'Priya', last_name: 'Nair', email: 'priya.nair@nexushr.com', department_id: 'dept-prd', designation_id: 'des-des', manager_id: 'EMP002', joining_date: '2021-06-10', employment_type: 'Full-Time', phone: '+91 98334 00003', gender: 'Female', date_of_birth: '1990-11-05' },
+  { employee_id: 'EMP004', first_name: 'Vikram', last_name: 'Singh', email: 'vikram.singh@nexushr.com', department_id: 'dept-eng', designation_id: 'des-swe', manager_id: 'EMP002', joining_date: '2022-08-01', employment_type: 'Full-Time', phone: '+91 98445 00004', gender: 'Male', date_of_birth: '1995-02-17' },
+  { employee_id: 'EMP005', first_name: 'Tanvi', last_name: 'Kapoor', email: 'tanvi.kapoor@nexushr.com', department_id: 'dept-hr', designation_id: 'des-rec', manager_id: 'EMP001', joining_date: '2022-11-15', employment_type: 'Full-Time', phone: '+91 98556 00005', gender: 'Female', date_of_birth: '1994-07-28' },
+  { employee_id: 'EMP006', first_name: 'Arjun', last_name: 'Mehta', email: 'arjun.mehta@nexushr.com', department_id: 'dept-eng', designation_id: 'des-swe', manager_id: 'EMP002', joining_date: '2023-01-10', employment_type: 'Full-Time', phone: '+91 98667 00006', gender: 'Male', date_of_birth: '1996-09-14' },
+  { employee_id: 'EMP007', first_name: 'Rohan', last_name: 'Sen', email: 'rohan.sen@nexushr.com', department_id: 'dept-eng', designation_id: 'des-swe', manager_id: 'EMP002', joining_date: '2023-02-01', employment_type: 'Full-Time', phone: '+91 98778 00007', gender: 'Male', date_of_birth: '1997-03-22' },
+  { employee_id: 'EMP008', first_name: 'Kavya', last_name: 'Iyer', email: 'kavya.iyer@nexushr.com', department_id: 'dept-prd', designation_id: 'des-des', manager_id: 'EMP003', joining_date: '2023-03-15', employment_type: 'Full-Time', phone: '+91 98889 00008', gender: 'Female', date_of_birth: '1998-05-18' },
+  { employee_id: 'EMP009', first_name: 'Aditya', last_name: 'Rao', email: 'aditya.rao@nexushr.com', department_id: 'dept-mkt', designation_id: 'des-rec', manager_id: 'EMP001', joining_date: '2023-04-10', employment_type: 'Full-Time', phone: '+91 98990 00009', gender: 'Male', date_of_birth: '1995-12-04' },
+  { employee_id: 'EMP010', first_name: 'Riya', last_name: 'Patel', email: 'riya.patel@nexushr.com', department_id: 'dept-fin', designation_id: 'des-hr-spec', manager_id: 'EMP001', joining_date: '2023-05-02', employment_type: 'Full-Time', phone: '+91 98111 00010', gender: 'Female', date_of_birth: '1996-08-11' },
+  { employee_id: 'EMP011', first_name: 'Manav', last_name: 'Khurana', email: 'manav.khurana@nexushr.com', department_id: 'dept-eng', designation_id: 'des-swe', manager_id: 'EMP002', joining_date: '2023-06-20', employment_type: 'Full-Time', phone: '+91 98222 00011', gender: 'Male', date_of_birth: '1997-10-15' },
+  { employee_id: 'EMP012', first_name: 'Anika', last_name: 'Reddy', email: 'anika.reddy@nexushr.com', department_id: 'dept-hr', designation_id: 'des-hr-spec', manager_id: 'EMP001', joining_date: '2023-07-01', employment_type: 'Full-Time', phone: '+91 98333 00012', gender: 'Female', date_of_birth: '1998-01-25' },
+  { employee_id: 'EMP013', first_name: 'Kunal', last_name: 'Singhania', email: 'kunal.singhania@nexushr.com', department_id: 'dept-fin', designation_id: 'des-hr-spec', manager_id: 'EMP001', joining_date: '2023-08-12', employment_type: 'Full-Time', phone: '+91 98444 00013', gender: 'Male', date_of_birth: '1994-06-30' },
+  { employee_id: 'EMP014', first_name: 'Pooja', last_name: 'Nair', email: 'pooja.nair@nexushr.com', department_id: 'dept-prd', designation_id: 'des-des', manager_id: 'EMP003', joining_date: '2023-09-05', employment_type: 'Full-Time', phone: '+91 98555 00014', gender: 'Female', date_of_birth: '1999-02-14' },
+  { employee_id: 'EMP015', first_name: 'Varun', last_name: 'Deshmukh', email: 'varun.deshmukh@nexushr.com', department_id: 'dept-eng', designation_id: 'des-swe', manager_id: 'EMP002', joining_date: '2023-10-18', employment_type: 'Full-Time', phone: '+91 98666 00015', gender: 'Male', date_of_birth: '1996-04-09' },
+  { employee_id: 'EMP016', first_name: 'Shreya', last_name: 'Das', email: 'shreya.das@nexushr.com', department_id: 'dept-mkt', designation_id: 'des-rec', manager_id: 'EMP001', joining_date: '2023-11-25', employment_type: 'Full-Time', phone: '+91 98777 00016', gender: 'Female', date_of_birth: '1997-11-20' },
+  { employee_id: 'EMP017', first_name: 'Nikhil', last_name: 'Bajaj', email: 'nikhil.bajaj@nexushr.com', department_id: 'dept-eng', designation_id: 'des-swe', manager_id: 'EMP002', joining_date: '2024-01-08', employment_type: 'Full-Time', phone: '+91 98888 00017', gender: 'Male', date_of_birth: '1998-08-05' },
+  { employee_id: 'EMP018', first_name: 'Ritu', last_name: 'Choudhary', email: 'ritu.choudhary@nexushr.com', department_id: 'dept-hr', designation_id: 'des-hr-spec', manager_id: 'EMP001', joining_date: '2024-02-14', employment_type: 'Full-Time', phone: '+91 98999 00018', gender: 'Female', date_of_birth: '1995-09-17' },
+  { employee_id: 'EMP019', first_name: 'Simran', last_name: 'Kaur', email: 'simran.kaur@nexushr.com', department_id: 'dept-eng', designation_id: 'des-swe', manager_id: 'EMP002', joining_date: '2024-03-01', employment_type: 'Full-Time', phone: '+91 98123 00019', gender: 'Female', date_of_birth: '2002-09-08' },
+  { employee_id: 'EMP020', first_name: 'Dev', last_name: 'Malik', email: 'dev.malik@nexushr.com', department_id: 'dept-eng', designation_id: 'des-swe', manager_id: 'EMP002', joining_date: '2024-03-15', employment_type: 'Full-Time', phone: '+91 98234 00020', gender: 'Male', date_of_birth: '1998-04-17' },
+  { employee_id: 'EMP021', first_name: 'Neha', last_name: 'Sharma', email: 'neha.sharma@nexushr.com', department_id: 'dept-hr', designation_id: 'des-hr-spec', manager_id: 'EMP001', joining_date: '2024-04-01', employment_type: 'Full-Time', phone: '+91 98345 00021', gender: 'Female', date_of_birth: '2000-05-12' },
+  { employee_id: 'EMP022', first_name: 'Aarav', last_name: 'Verma', email: 'aarav.verma@nexushr.com', department_id: 'dept-eng', designation_id: 'des-swe', manager_id: 'EMP002', joining_date: '2024-04-15', employment_type: 'Full-Time', phone: '+91 98456 00022', gender: 'Male', date_of_birth: '1999-12-03' },
+  { employee_id: 'EMP023', first_name: 'Diya', last_name: 'Kapoor', email: 'diya.kapoor@nexushr.com', department_id: 'dept-prd', designation_id: 'des-des', manager_id: 'EMP003', joining_date: '2024-05-01', employment_type: 'Full-Time', phone: '+91 98567 00023', gender: 'Female', date_of_birth: '2001-07-19' },
+  { employee_id: 'EMP024', first_name: 'Kabir', last_name: 'Malhotra', email: 'kabir.malhotra@nexushr.com', department_id: 'dept-eng', designation_id: 'des-swe', manager_id: 'EMP002', joining_date: '2024-05-15', employment_type: 'Full-Time', phone: '+91 98678 00024', gender: 'Male', date_of_birth: '1997-03-11' },
+  { employee_id: 'EMP025', first_name: 'Sanya', last_name: 'Gupta', email: 'sanya.gupta@nexushr.com', department_id: 'dept-mkt', designation_id: 'des-rec', manager_id: 'EMP001', joining_date: '2024-06-01', employment_type: 'Full-Time', phone: '+91 98789 00025', gender: 'Female', date_of_birth: '2000-10-24' },
+  { employee_id: 'EMP026', first_name: 'Ishaan', last_name: 'Mehta', email: 'ishaan.mehta@nexushr.com', department_id: 'dept-fin', designation_id: 'des-hr-spec', manager_id: 'EMP001', joining_date: '2024-06-15', employment_type: 'Full-Time', phone: '+91 98890 00026', gender: 'Male', date_of_birth: '1998-02-16' },
+  { employee_id: 'EMP027', first_name: 'Tanya', last_name: 'Singh', email: 'tanya.singh@nexushr.com', department_id: 'dept-hr', designation_id: 'des-hr-spec', manager_id: 'EMP001', joining_date: '2024-07-01', employment_type: 'Full-Time', phone: '+91 98901 00027', gender: 'Female', date_of_birth: '2001-08-08' },
+  { employee_id: 'EMP028', first_name: 'Yash', last_name: 'Arora', email: 'yash.arora@nexushr.com', department_id: 'dept-eng', designation_id: 'des-swe', manager_id: 'EMP002', joining_date: '2024-07-15', employment_type: 'Full-Time', phone: '+91 98012 00028', gender: 'Male', date_of_birth: '1999-06-14' },
+  { employee_id: 'EMP029', first_name: 'Manya', last_name: 'Joshi', email: 'manya.joshi@nexushr.com', department_id: 'dept-prd', designation_id: 'des-des', manager_id: 'EMP003', joining_date: '2024-08-01', employment_type: 'Full-Time', phone: '+91 98134 00029', gender: 'Female', date_of_birth: '2002-01-30' },
+  { employee_id: 'EMP030', first_name: 'Reyansh', last_name: 'Kumar', email: 'reyansh.kumar@nexushr.com', department_id: 'dept-eng', designation_id: 'des-swe', manager_id: 'EMP002', joining_date: '2024-08-15', employment_type: 'Full-Time', phone: '+91 98245 00030', gender: 'Male', date_of_birth: '2000-11-21' }
 ];
 
-export const initialProfiles = [
-  { id: '11111111-1111-1111-1111-111111111111', employee_id: 'EMP-1001', email: 'ananya.sharma@nexushr.com', full_name: 'Ananya Sharma', role: 'hr', created_at: '2026-01-01T00:00:00Z' },
-  { id: '22222222-2222-2222-2222-222222222222', employee_id: 'EMP-1002', email: 'rohit.verma@nexushr.com', full_name: 'Rohit Verma', role: 'admin', created_at: '2026-01-01T00:00:00Z' },
-  { id: '33333333-3333-3333-3333-333333333333', employee_id: 'EMP-1003', email: 'priya.nair@nexushr.com', full_name: 'Priya Nair', role: 'manager', created_at: '2026-01-01T00:00:00Z' },
-  { id: '44444444-4444-4444-4444-444444444444', employee_id: 'EMP-1004', email: 'vikram.singh@nexushr.com', full_name: 'Vikram Singh', role: 'employee', created_at: '2026-01-01T00:00:00Z' },
-  { id: '55555555-5555-5555-5555-555555555555', employee_id: 'EMP-1005', email: 'tanvi.kapoor@nexushr.com', full_name: 'Tanvi Kapoor', role: 'recruiter', created_at: '2026-01-01T00:00:00Z' },
-  { id: '66666666-6666-6666-6666-666666666666', employee_id: 'EMP-1006', email: 'arjun.mehta@nexushr.com', full_name: 'Arjun Mehta', role: 'employee', created_at: '2026-01-01T00:00:00Z' },
-];
+export const initialProfiles = initialEmployeeRecords.map((emp, index) => {
+  let role = 'employee';
+  if (emp.employee_id === 'EMP001') role = 'hr';
+  else if (emp.employee_id === 'EMP002') role = 'admin';
+  else if (emp.employee_id === 'EMP003') role = 'manager';
+  else if (emp.employee_id === 'EMP005') role = 'recruiter';
+
+  return {
+    id: `usr-${emp.employee_id.toLowerCase()}`,
+    employee_id: emp.employee_id,
+    email: emp.email,
+    full_name: `${emp.first_name} ${emp.last_name}`.trim(),
+    role: role,
+    created_at: '2026-01-01T00:00:00Z'
+  };
+});
 
 export const initialAttendance = [
-  { attendance_id: 'att-1', employee_id: 'EMP-1001', check_in: '09:00', check_out: '18:00', status: 'present', created_at: '2026-11-09T09:00:00Z' },
-  { attendance_id: 'att-2', employee_id: 'EMP-1002', check_in: '09:15', check_out: '18:15', status: 'present', created_at: '2026-11-09T09:15:00Z' },
-  { attendance_id: 'att-3', employee_id: 'EMP-1003', check_in: '09:30', check_out: '18:30', status: 'present', created_at: '2026-11-09T09:30:00Z' },
-  { attendance_id: 'att-4', employee_id: 'EMP-1004', check_in: '09:05', check_out: '18:00', status: 'present', created_at: '2026-11-09T09:05:00Z' },
-  { attendance_id: 'att-5', employee_id: 'EMP-1005', check_in: '09:20', check_out: '18:10', status: 'present', created_at: '2026-11-09T09:20:00Z' },
-  { attendance_id: 'att-6', employee_id: 'EMP-1006', check_in: '09:10', check_out: '18:05', status: 'present', created_at: '2026-11-09T09:10:00Z' },
+  { attendance_id: 'att-1', employee_id: 'EMP019', check_in: '09:00', check_out: '18:00', status: 'present', created_at: '2026-11-09T09:00:00Z' },
+  { attendance_id: 'att-2', employee_id: 'EMP020', check_in: '09:15', check_out: '18:15', status: 'present', created_at: '2026-11-09T09:15:00Z' },
+  { attendance_id: 'att-3', employee_id: 'EMP021', check_in: '09:05', check_out: '18:00', status: 'present', created_at: '2026-11-09T09:05:00Z' },
+  { attendance_id: 'att-4', employee_id: 'EMP001', check_in: '09:00', check_out: '18:00', status: 'present', created_at: '2026-11-09T09:00:00Z' },
+  { attendance_id: 'att-5', employee_id: 'EMP002', check_in: '09:10', check_out: '18:10', status: 'present', created_at: '2026-11-09T09:10:00Z' },
 ];
 
 export const initialLeaveBalances = [
-  { balance_id: 'bal-1', employee_id: 'EMP-1004', leave_type: 'Paid Leave', year: 2026, created_at: '2026-01-01T00:00:00Z' },
-  { balance_id: 'bal-2', employee_id: 'EMP-1004', leave_type: 'Sick Leave', year: 2026, created_at: '2026-01-01T00:00:00Z' },
-  { balance_id: 'bal-3', employee_id: 'EMP-1006', leave_type: 'Paid Leave', year: 2026, created_at: '2026-01-01T00:00:00Z' },
+  { balance_id: 'bal-1', employee_id: 'EMP019', leave_type: 'Paid Leave', year: 2026, created_at: '2026-01-01T00:00:00Z' },
+  { balance_id: 'bal-2', employee_id: 'EMP020', leave_type: 'Sick Leave', year: 2026, created_at: '2026-01-01T00:00:00Z' },
 ];
 
 export const initialLeaveRequests = [
   {
     request_id: 'req-1',
-    employee_id: 'EMP-1004',
+    employee_id: 'EMP019',
     leave_type: 'Sick Leave',
     start_date: '2026-11-15',
     end_date: '2026-11-16',
-    reason: 'Medical consultation and recovery',
+    reason: 'Medical checkup',
     status: 'pending',
     created_at: '2026-11-08T10:00:00Z'
   },
   {
     request_id: 'req-2',
-    employee_id: 'EMP-1006',
+    employee_id: 'EMP020',
     leave_type: 'Paid Leave',
     start_date: '2026-11-20',
     end_date: '2026-11-22',
@@ -177,8 +106,8 @@ export const initialLeaveRequests = [
 ];
 
 export const initialPayroll = [
-  { payroll_id: 'pay-1', employee_id: 'EMP-1004', basic_salary: 85000, allowances: 25000, net_salary: 98500, created_at: '2026-10-31T00:00:00Z' },
-  { payroll_id: 'pay-2', employee_id: 'EMP-1006', basic_salary: 90000, allowances: 25000, net_salary: 103000, created_at: '2026-10-31T00:00:00Z' },
+  { payroll_id: 'pay-1', employee_id: 'EMP019', basic_salary: 85000, allowances: 25000, net_salary: 98500, created_at: '2026-10-31T00:00:00Z' },
+  { payroll_id: 'pay-2', employee_id: 'EMP020', basic_salary: 90000, allowances: 25000, net_salary: 103000, created_at: '2026-10-31T00:00:00Z' },
 ];
 
 export const initialPayslips = [
@@ -189,13 +118,13 @@ export const initialPayslips = [
 export const initialGrievances = [
   {
     grievance_id: 'grv-1',
-    employee_id: 'EMP-1004',
+    employee_id: 'EMP019',
     category: 'Workplace Environment',
     subject: 'Ergonomic seating upgrade request',
     description: 'Requesting ergonomic lumbar chair replacement for desk station.',
     priority: 'medium',
     status: 'in_review',
-    assigned_to: 'EMP-1001'
+    assigned_to: 'EMP001'
   }
 ];
 
@@ -213,43 +142,27 @@ export const initialJobPostings = [
     salary_range: '₹12,00,000 - ₹18,00,000 PA',
     description: 'We are seeking an experienced Frontend Developer to spearhead our next-gen enterprise UI and micro-frontends.',
     posted_date: '2026-10-15',
-  },
-  {
-    id: 'job-2',
-    title: 'Lead Product Designer',
-    department_id: 'dept-prd',
-    designation_id: 'des-des',
-    employment_type: 'Full-Time',
-    location: 'Remote, India',
-    experience_required: '5+ Years',
-    openings: 1,
-    status: 'published',
-    salary_range: '₹14,00,000 - ₹20,00,000 PA',
-    description: 'Oversee UI/UX design systems, user journey mapping, and usability testing for B2B portal products.',
-    posted_date: '2026-10-20',
   }
 ];
 
 export const initialCandidates = [
   { id: 'cand-1', first_name: 'Siddharth', last_name: 'Rao', email: 'siddharth.rao@example.com', phone: '+91 99112 88291', skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'], experience_years: 5, status: 'interviewing' },
-  { id: 'cand-2', first_name: 'Meera', last_name: 'Iyer', email: 'meera.iyer@example.com', phone: '+91 99223 77382', skills: ['Figma', 'Design Systems', 'User Research'], experience_years: 6, status: 'offered' },
 ];
 
 export const initialApplications = [
   { id: 'app-1', candidate_id: 'cand-1', job_posting_id: 'job-1', applied_date: '2026-10-18', status: 'interview', rating: 4.8, notes: 'Strong architectural fundamentals in React 19.' },
-  { id: 'app-2', candidate_id: 'cand-2', job_posting_id: 'job-2', applied_date: '2026-10-22', status: 'offered', rating: 4.9, notes: 'Outstanding design portfolio and systems experience.' },
 ];
 
 export const initialInterviews = [
-  { id: 'int-1', application_id: 'app-1', stage: 'Technical Round 2', scheduled_at: '2026-11-12T11:00:00Z', interviewer_id: 'EMP-1002', status: 'scheduled' }
+  { id: 'int-1', application_id: 'app-1', stage: 'Technical Round 2', scheduled_at: '2026-11-12T11:00:00Z', interviewer_id: 'EMP002', status: 'scheduled' }
 ];
 
 export const initialOfferLetters = [
-  { id: 'off-1', candidate_id: 'cand-2', designation_id: 'des-des', base_salary: 1800000, joining_date: '2026-12-01', status: 'sent' }
+  { id: 'off-1', candidate_id: 'cand-1', designation_id: 'des-swe', base_salary: 1800000, joining_date: '2026-12-01', status: 'sent' }
 ];
 
 export const initialOnboarding = [
-  { id: 'onb-1', candidate_id: 'cand-2', step: 'Background Verification', status: 'in_progress', completed_percentage: 60 }
+  { id: 'onb-1', candidate_id: 'cand-1', step: 'Background Verification', status: 'in_progress', completed_percentage: 60 }
 ];
 
 export const initialSalaryStructures = [
@@ -258,7 +171,6 @@ export const initialSalaryStructures = [
 
 export const initialDeductionRules = [
   { id: 'ded-1', name: 'Provident Fund (PF)', percentage: 12, is_statutory: true },
-  { id: 'ded-2', name: 'Professional Tax', fixed_amount: 200, is_statutory: true }
 ];
 
 export const initialPayrollDeductions = [
@@ -266,7 +178,7 @@ export const initialPayrollDeductions = [
 ];
 
 export const initialGrievanceCommunications = [
-  { id: 'gcom-1', grievance_id: 'grv-1', sender_id: 'EMP-1001', message: 'Procurement team has placed the purchase requisition.', created_at: '2026-11-09T14:00:00Z' }
+  { id: 'gcom-1', grievance_id: 'grv-1', sender_id: 'EMP001', message: 'Procurement team has placed the purchase requisition.', created_at: '2026-11-09T14:00:00Z' }
 ];
 
 export const initialGrievanceResolutions = [

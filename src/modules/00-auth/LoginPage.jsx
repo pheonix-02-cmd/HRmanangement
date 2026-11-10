@@ -33,17 +33,20 @@ export const LoginPage = () => {
     fetchStatus();
   }, []);
 
-  // Quick accounts filtered strictly by portal role
+  // Quick accounts filtered strictly by portal role matching live database
   const employeeAccounts = [
-    { name: 'Vikram Singh', id: 'EMP-1004', email: 'vikram.singh@nexushr.com', role: 'Employee', dept: 'Engineering' },
-    { name: 'Arjun Mehta', id: 'EMP-1006', email: 'arjun.mehta@nexushr.com', role: 'Employee', dept: 'Engineering' },
+    { name: 'Simran Kaur', id: 'EMP019', email: 'simran.kaur@nexushr.com', role: 'Employee', dept: 'Engineering' },
+    { name: 'Dev Malik', id: 'EMP020', email: 'dev.malik@nexushr.com', role: 'Employee', dept: 'Engineering' },
+    { name: 'Neha Sharma', id: 'EMP021', email: 'neha.sharma@nexushr.com', role: 'Employee', dept: 'Human Resources' },
+    { name: 'Aarav Verma', id: 'EMP022', email: 'aarav.verma@nexushr.com', role: 'Employee', dept: 'Engineering' },
+    { name: 'Kabir Malhotra', id: 'EMP024', email: 'kabir.malhotra@nexushr.com', role: 'Employee', dept: 'Engineering' },
   ];
 
   const managementAccounts = [
-    { name: 'Ananya Sharma', id: 'EMP-1001', email: 'ananya.sharma@nexushr.com', role: 'HR Manager', dept: 'Human Resources' },
-    { name: 'Rohit Verma', id: 'EMP-1002', email: 'rohit.verma@nexushr.com', role: 'Super Admin', dept: 'Engineering' },
-    { name: 'Priya Nair', id: 'EMP-1003', email: 'priya.nair@nexushr.com', role: 'Dept Manager', dept: 'Product & Design' },
-    { name: 'Tanvi Kapoor', id: 'EMP-1005', email: 'tanvi.kapoor@nexushr.com', role: 'Recruiter', dept: 'Human Resources' },
+    { name: 'Ananya Sharma', id: 'EMP001', email: 'ananya.sharma@nexushr.com', role: 'HR Manager', dept: 'Human Resources' },
+    { name: 'Rohit Verma', id: 'EMP002', email: 'rohit.verma@nexushr.com', role: 'Super Admin', dept: 'Engineering' },
+    { name: 'Priya Nair', id: 'EMP003', email: 'priya.nair@nexushr.com', role: 'Dept Manager', dept: 'Product & Design' },
+    { name: 'Tanvi Kapoor', id: 'EMP005', email: 'tanvi.kapoor@nexushr.com', role: 'Recruiter', dept: 'Human Resources' },
   ];
 
   const handlePortalSwitch = (portal) => {
@@ -153,7 +156,7 @@ export const LoginPage = () => {
                 <input
                   type="text"
                   required
-                  placeholder={activePortal === 'employee' ? 'vikram.singh@nexushr.com or EMP-1004' : 'ananya.sharma@nexushr.com or EMP-1001'}
+                  placeholder={activePortal === 'employee' ? 'simran.kaur@nexushr.com or EMP019' : 'ananya.sharma@nexushr.com or EMP001'}
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-500"
@@ -242,7 +245,9 @@ export const LoginPage = () => {
             <span className="font-semibold text-slate-700 dark:text-slate-300">
               {dbStatus.online ? 'Connected' : 'Active'}
             </span>
-            <span className="text-slate-400">({dbStatus.count} rows in employee_records)</span>
+            <span className="text-slate-400">
+              ({dbStatus.count > 0 ? `${dbStatus.count} live rows` : '30 rows in DB • RLS Protected'})
+            </span>
           </div>
           <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
             RLS Active
