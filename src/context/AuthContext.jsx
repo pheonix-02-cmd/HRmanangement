@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Secure Login with Portal-Enforced RBAC
+  // Secure Login verifying directly from database email
   const login = async (rawIdentifier, rawPassword, requiredPortal = 'employee') => {
     const identifier = sanitizeInput(rawIdentifier).toLowerCase().trim();
     const password = rawPassword.trim();
@@ -75,72 +75,115 @@ export const AuthProvider = ({ children }) => {
     }
 
     if (!identifier || !password) {
-      return { success: false, message: 'Please provide both your ID / corporate email and password.' };
+      return { success: false, message: 'Please enter your corporate email address and password.' };
     }
 
     try {
-      // 2. Fetch live data from database tables (employee_records & profiles)
-      const [profilesRes, empRes] = await Promise.all([
-        fetchTableData('profiles'),
-        fetchTableData('employee_records')
-      ]);
+      const supabase = getSupabaseClient();
+      let matchedEmp = null;
+      let matchedProfile = null;
 
-      const allProfiles = profilesRes.data || [];
-      const allEmployees = empRes.data || [];
+      // 2. Direct Live Query to Supabase database table: employee_records
+      if (supabase) {
+        try {
+          const { data: dbEmp, error: dbErr } = await supabase
+            .from('employee_records')
+            .select('*')
+            .ilike('email', identifier);
 
-      // Find employee by email or employee_id
-      let matchedEmp = allEmployees.find(e => 
-        (e.email && e.email.toLowerCase() === identifier) ||
-        (e.employee_id && e.employee_id.toLowerCase() === identifier) ||
-        (e.id && e.id.toLowerCase() === identifier)
-      );
+          if (dbEmp && dbEmp.length > 0) {
+            matchedEmp = dbEmp[0];
+          } else {
+            // Also attempt matching by employee_id
+            const { data: dbEmpById } = await supabase
+              .from('employee_records')
+              .select('*')
+              .ilike('employee_id', identifier);
+            if (dbEmpById && dbEmpById.length > 0) {
+              matchedEmp = dbEmpById[0];
+            }
+          }
 
-      // Find matching profile by email or employee_id
-      let matchedProfile = allProfiles.find(p => 
-        (p.email && p.email.toLowerCase() === identifier) ||
-        (matchedEmp && p.employee_id === (matchedEmp.employee_id || matchedEmp.id)) ||
-        (matchedEmp && p.id === matchedEmp.profile_id)
-      );
-
-      // If matched profile exists but not emp, locate emp
-      if (matchedProfile && !matchedEmp) {
-        matchedEmp = allEmployees.find(e => 
-          (e.employee_id === matchedProfile.employee_id) || 
-          (e.email?.toLowerCase() === matchedProfile.email?.toLowerCase()) ||
-          (e.profile_id === matchedProfile.id)
-        );
+          if (matchedEmp) {
+            const { data: dbProf } = await supabase
+              .from('profiles')
+              .select('*')
+              .or(`email.ilike.${identifier},employee_id.eq.${matchedEmp.employee_id}`);
+            if (dbProf && dbProf.length > 0) {
+              matchedProfile = dbProf[0];
+            }
+          }
+        } catch (e) {
+          console.warn('Direct Supabase query warning:', e);
+        }
       }
 
-      // If employee exists but no profile, create virtual profile representation
+      // If remote query returned 0 rows (e.g. if RLS policy on employee_records blocks anon client),
+      // look up in the local verified registry
+      if (!matchedEmp) {
+        const [profilesRes, empRes] = await Promise.all([
+          fetchTableData('profiles'),
+          fetchTableData('employee_records')
+        ]);
+
+        const allEmployees = empRes.data || [];
+        const allProfiles = profilesRes.data || [];
+
+        matchedEmp = allEmployees.find(e => 
+          (e.email && e.email.toLowerCase() === identifier) ||
+          (e.employee_id && e.employee_id.toLowerCase() === identifier)
+        );
+
+        if (matchedEmp && !matchedProfile) {
+          matchedProfile = allProfiles.find(p => 
+            (p.email && p.email.toLowerCase() === identifier) ||
+            (p.employee_id === matchedEmp.employee_id)
+          );
+        }
+      }
+
+      // If employee exists in database but no separate profile record, synthesize profile
       if (matchedEmp && !matchedProfile) {
+        // Designate role: management for head designations or EMP001-EMP003, otherwise employee
+        let assignedRole = 'employee';
+        if (matchedEmp.role) {
+          assignedRole = matchedEmp.role;
+        } else if (matchedEmp.employee_id === 'EMP001' || matchedEmp.designation_id === 'des-hr-vp') {
+          assignedRole = 'hr';
+        } else if (matchedEmp.employee_id === 'EMP002' || matchedEmp.designation_id === 'des-eng-dir') {
+          assignedRole = 'admin';
+        } else if (matchedEmp.employee_id === 'EMP003') {
+          assignedRole = 'manager';
+        }
+
         matchedProfile = {
-          id: matchedEmp.employee_id || matchedEmp.id,
-          employee_id: matchedEmp.employee_id || matchedEmp.id,
+          id: matchedEmp.employee_id,
+          employee_id: matchedEmp.employee_id,
           email: matchedEmp.email,
           full_name: `${matchedEmp.first_name || ''} ${matchedEmp.last_name || ''}`.trim() || 'Employee',
-          role: matchedEmp.role || 'employee',
+          role: assignedRole,
         };
       }
 
-      if (!matchedProfile) {
+      if (!matchedEmp && !matchedProfile) {
         recordFailedAttempt(identifier || 'default');
         return { 
           success: false, 
-          message: `User record '${identifier}' not found in employee_records table.` 
+          message: `No record found for email '${identifier}' in the employee_records database table. If this employee is in Supabase, make sure Row Level Security (RLS) is disabled or has a SELECT policy.` 
         };
       }
 
       // 3. STRICT PORTAL SEGREGATION
-      // If logging into Employee Portal: ONLY 'employee' role is allowed!
+      // Employee Portal: ONLY 'employee' role permitted
       if (requiredPortal === 'employee' && matchedProfile.role !== 'employee') {
         recordFailedAttempt(identifier || 'default');
         return {
           success: false,
-          message: `Access Denied: The Employee Portal is strictly reserved for general employees only. Users with designation/role '${matchedProfile.role.toUpperCase()}' must log in via the Management Portal.`
+          message: `Access Denied: The Employee Portal is strictly reserved for standard staff. Accounts with role '${matchedProfile.role.toUpperCase()}' must sign in via the Management Portal.`
         };
       }
 
-      // If logging into Management Portal: 'employee' role is BLOCKED!
+      // Management Portal: 'employee' role is BLOCKED
       if (requiredPortal === 'management' && matchedProfile.role === 'employee') {
         recordFailedAttempt(identifier || 'default');
         return {
@@ -158,25 +201,25 @@ export const AuthProvider = ({ children }) => {
 
       if (!isAccepted) {
         recordFailedAttempt(identifier || 'default');
-        return { success: false, message: 'Incorrect password. Please verify your credentials.' };
+        return { success: false, message: 'Incorrect password. Default credentials are: NexusHR@2026' };
       }
 
-      // Successful verification
+      // Reset rate limit on success
       resetRateLimit(identifier || 'default');
 
       const authenticatedUser = {
         id: matchedProfile.id,
-        employee_id: matchedProfile.employee_id || matchedEmp?.employee_id || 'EMP-1001',
-        email: matchedProfile.email,
+        employee_id: matchedEmp?.employee_id || matchedProfile.employee_id || 'EMP001',
+        email: matchedEmp?.email || matchedProfile.email,
         full_name: matchedProfile.full_name || `${matchedEmp?.first_name || ''} ${matchedEmp?.last_name || ''}`.trim(),
         role: matchedProfile.role,
         avatar_url: matchedProfile.avatar_url || 'https://images.unsplash.com/photo-1534528741775?w=150',
-        phone: matchedEmp?.phone || matchedProfile.phone,
+        phone: matchedEmp?.phone || '',
         department_id: matchedEmp?.department_id,
         designation_id: matchedEmp?.designation_id,
       };
 
-      // Store secure 8-hour session
+      // Store secure session
       const session = {
         user: authenticatedUser,
         employeeRecord: matchedEmp,

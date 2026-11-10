@@ -6,19 +6,16 @@ import {
   EyeOff, 
   ShieldCheck, 
   User, 
-  Building2, 
   AlertCircle,
   Database,
-  CheckCircle2,
-  HelpCircle,
-  Info
+  Building2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const LoginPage = () => {
   const { login, checkLiveSupabaseCount } = useAuth();
   const [activePortal, setActivePortal] = useState('employee'); // 'employee' | 'management'
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -33,33 +30,11 @@ export const LoginPage = () => {
     fetchStatus();
   }, []);
 
-  // Quick accounts filtered strictly by portal role matching live database
-  const employeeAccounts = [
-    { name: 'Simran Kaur', id: 'EMP019', email: 'simran.kaur@nexushr.com', role: 'Employee', dept: 'Engineering' },
-    { name: 'Dev Malik', id: 'EMP020', email: 'dev.malik@nexushr.com', role: 'Employee', dept: 'Engineering' },
-    { name: 'Neha Sharma', id: 'EMP021', email: 'neha.sharma@nexushr.com', role: 'Employee', dept: 'Human Resources' },
-    { name: 'Aarav Verma', id: 'EMP022', email: 'aarav.verma@nexushr.com', role: 'Employee', dept: 'Engineering' },
-    { name: 'Kabir Malhotra', id: 'EMP024', email: 'kabir.malhotra@nexushr.com', role: 'Employee', dept: 'Engineering' },
-  ];
-
-  const managementAccounts = [
-    { name: 'Ananya Sharma', id: 'EMP001', email: 'ananya.sharma@nexushr.com', role: 'HR Manager', dept: 'Human Resources' },
-    { name: 'Rohit Verma', id: 'EMP002', email: 'rohit.verma@nexushr.com', role: 'Super Admin', dept: 'Engineering' },
-    { name: 'Priya Nair', id: 'EMP003', email: 'priya.nair@nexushr.com', role: 'Dept Manager', dept: 'Product & Design' },
-    { name: 'Tanvi Kapoor', id: 'EMP005', email: 'tanvi.kapoor@nexushr.com', role: 'Recruiter', dept: 'Human Resources' },
-  ];
-
   const handlePortalSwitch = (portal) => {
     setActivePortal(portal);
     setErrorMessage('');
-    setIdentifier('');
+    setEmail('');
     setPassword('');
-  };
-
-  const handleQuickFill = (acc) => {
-    setIdentifier(acc.email);
-    setPassword('NexusHR@2026');
-    setErrorMessage('');
   };
 
   const handleSubmit = async (e) => {
@@ -67,7 +42,7 @@ export const LoginPage = () => {
     setErrorMessage('');
     setLoading(true);
 
-    const result = await login(identifier, password, activePortal);
+    const result = await login(email, password, activePortal);
     if (!result.success) {
       setErrorMessage(result.message);
     }
@@ -86,11 +61,11 @@ export const LoginPage = () => {
           Nexus<span className="text-teal-600 dark:text-teal-400">HR</span> Portal
         </h2>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          Enterprise Human Resource Management System
+          Sign in using your corporate email from the employee database
         </p>
       </div>
 
-      {/* Main Container */}
+      {/* Main Login Container */}
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
         
         {/* Portal Switcher Tabs */}
@@ -121,24 +96,24 @@ export const LoginPage = () => {
           </button>
         </div>
 
-        {/* Portal Scope Alert */}
+        {/* Scope Helper Message */}
         <div className="mb-4 px-3 py-2 rounded-lg bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900/60 text-[11px] text-teal-800 dark:text-teal-300 flex items-center justify-between">
           <span>
-            {activePortal === 'employee' 
-              ? 'Employee Portal: Restricted exclusively to standard employees. Managers & Admins are blocked.'
-              : 'Management Portal: For HR Managers, Department Heads, and System Admins.'}
+            {activePortal === 'employee'
+              ? 'Employee Portal: Restricted strictly to general employees. Managers & Admins are blocked.'
+              : 'Management Portal: For HR Managers, Department Heads, and System Administrators.'}
           </span>
           <span className="font-semibold uppercase tracking-wider text-[9px] bg-teal-100 dark:bg-teal-900/60 px-1.5 py-0.5 rounded">
             {activePortal}
           </span>
         </div>
 
-        {/* Main Card */}
+        {/* Login Card */}
         <div className="bg-white dark:bg-slate-900 py-7 px-6 sm:px-8 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
           
           <form onSubmit={handleSubmit} className="space-y-4">
             
-            {/* Error Banner */}
+            {/* Error Message */}
             {errorMessage && (
               <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-start space-x-2 text-xs text-rose-700 dark:text-rose-400">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -146,25 +121,25 @@ export const LoginPage = () => {
               </div>
             )}
 
-            {/* Email / Employee ID */}
+            {/* Corporate Email Field */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Corporate Email or Employee ID
+                Corporate Email Address
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                  type="text"
+                  type="email"
                   required
-                  placeholder={activePortal === 'employee' ? 'simran.kaur@nexushr.com or EMP019' : 'ananya.sharma@nexushr.com or EMP001'}
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="Enter email from employee_records table..."
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-500"
                 />
               </div>
             </div>
 
-            {/* Password */}
+            {/* Password Field */}
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -179,7 +154,7 @@ export const LoginPage = () => {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  placeholder="Enter your password..."
+                  placeholder="Enter password..."
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-9 pr-9 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-500"
@@ -201,56 +176,24 @@ export const LoginPage = () => {
                 disabled={loading}
                 className="w-full py-2.5 px-4 rounded-lg text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition shadow-xs disabled:opacity-50"
               >
-                {loading ? 'Verifying Credentials...' : `Sign In to ${activePortal === 'employee' ? 'Employee Portal' : 'Management Portal'}`}
+                {loading ? 'Verifying with Database...' : `Sign In to ${activePortal === 'employee' ? 'Employee Portal' : 'Management Portal'}`}
               </button>
             </div>
           </form>
 
-          {/* Quick autofill accounts matching the selected section */}
-          <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                {activePortal === 'employee' ? 'Employee Accounts' : 'Management Accounts'}
-              </span>
-              <span className="text-[10px] text-slate-400">Click to autofill</span>
-            </div>
-            
-            <div className="space-y-1.5">
-              {(activePortal === 'employee' ? employeeAccounts : managementAccounts).map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => handleQuickFill(acc)}
-                  className="w-full px-3 py-1.5 text-left rounded-lg text-xs border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition flex items-center justify-between group"
-                >
-                  <div>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">{acc.name}</span>
-                    <span className="text-[10px] text-slate-400 ml-1.5">({acc.role})</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 group-hover:underline">
-                    {acc.id} →
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
         </div>
 
-        {/* Database Status Footer */}
+        {/* Database Verification Status */}
         <div className="mt-4 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
           <div className="flex items-center space-x-1.5">
             <Database className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-            <span>Supabase API:</span>
+            <span>Database:</span>
             <span className="font-semibold text-slate-700 dark:text-slate-300">
-              {dbStatus.online ? 'Connected' : 'Active'}
-            </span>
-            <span className="text-slate-400">
-              ({dbStatus.count > 0 ? `${dbStatus.count} live rows` : '30 rows in DB • RLS Protected'})
+              Supabase PostgreSQL
             </span>
           </div>
-          <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
-            RLS Active
+          <span className="font-mono text-[10px] text-teal-600 dark:text-teal-400">
+            employee_records connected
           </span>
         </div>
 
