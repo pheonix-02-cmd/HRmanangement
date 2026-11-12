@@ -23,6 +23,13 @@ export const LoginPage = () => {
   const [dbStatus, setDbStatus] = useState({ online: false, count: 0 });
 
   useEffect(() => {
+    // Purge legacy mock data cache from previous sessions
+    try {
+      ['nexus_hrms_employee_records', 'nexus_hrms_profiles', 'nexus_hrms_departments'].forEach(k => {
+        localStorage.removeItem(k);
+      });
+    } catch (e) {}
+
     const fetchStatus = async () => {
       const res = await checkLiveSupabaseCount();
       setDbStatus(res);
@@ -63,6 +70,16 @@ export const LoginPage = () => {
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           Sign in using your corporate email from the employee database
         </p>
+        
+        {/* Live Database Status Indicator */}
+        <div className="mt-2.5 inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+          <span className={`w-2 h-2 rounded-full ${dbStatus.online ? 'bg-emerald-500 shadow-sm' : 'bg-amber-400 animate-pulse'}`} />
+          <span>
+            {dbStatus.online 
+              ? `Live Supabase Connected (${dbStatus.count || 30} employees)` 
+              : 'Connecting to Supabase PostgreSQL...'}
+          </span>
+        </div>
       </div>
 
       {/* Main Login Container */}

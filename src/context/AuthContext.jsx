@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getSupabaseClient } from '../config/supabase';
+import { getSupabaseClient, supabaseDirectFetch } from '../config/supabase';
 import { fetchTableData } from '../services/dataStorage';
 import { 
   sanitizeInput, 
@@ -48,6 +48,13 @@ export const AuthProvider = ({ children }) => {
 
   // Fetch live count directly from Supabase employee_records
   const checkLiveSupabaseCount = async () => {
+    try {
+      const direct = await supabaseDirectFetch('employee_records', 'select=employee_id');
+      if (direct && Array.isArray(direct)) {
+        return { online: true, count: direct.length, error: null };
+      }
+    } catch (e) {}
+
     const supabase = getSupabaseClient();
     if (!supabase) return { online: false, count: 0 };
     try {
@@ -84,42 +91,57 @@ export const AuthProvider = ({ children }) => {
       let matchedProfile = null;
 
       // 2. Direct Live Query to Supabase database table: employee_records
-      if (supabase) {
+      try {
+        const directEmp = await supabaseDirectFetch(
+          'employee_records', 
+          `select=*&email=ilike.${encodeURIComponent(identifier)}`
+        );
+        if (directEmp && directEmp.length > 0) {
+          matchedEmp = directEmp[0];
+        } else {
+          // Also attempt matching by employee_id
+          const directById = await supabaseDirectFetch(
+            'employee_records', 
+            `select=*&employee_id=ilike.${encodeURIComponent(identifier)}`
+          );
+          if (directById && directById.length > 0) {
+            matchedEmp = directById[0];
+          }
+        }
+
+        if (matchedEmp) {
+          try {
+            const directProf = await supabaseDirectFetch(
+              'profiles', 
+              `select=*&employee_id=eq.${encodeURIComponent(matchedEmp.employee_id)}`
+            );
+            if (directProf && directProf.length > 0) {
+              matchedProfile = directProf[0];
+            }
+          } catch (pErr) {
+            console.warn('Profile direct lookup warning:', pErr);
+          }
+        }
+      } catch (e) {
+        console.warn('Direct Supabase fetch warning:', e);
+      }
+
+      // If direct fetch didn't return (e.g. offline fallback), try SDK
+      if (!matchedEmp && supabase) {
         try {
-          const { data: dbEmp, error: dbErr } = await supabase
+          const { data: dbEmp } = await supabase
             .from('employee_records')
             .select('*')
             .ilike('email', identifier);
-
           if (dbEmp && dbEmp.length > 0) {
             matchedEmp = dbEmp[0];
-          } else {
-            // Also attempt matching by employee_id
-            const { data: dbEmpById } = await supabase
-              .from('employee_records')
-              .select('*')
-              .ilike('employee_id', identifier);
-            if (dbEmpById && dbEmpById.length > 0) {
-              matchedEmp = dbEmpById[0];
-            }
-          }
-
-          if (matchedEmp) {
-            const { data: dbProf } = await supabase
-              .from('profiles')
-              .select('*')
-              .or(`email.ilike.${identifier},employee_id.eq.${matchedEmp.employee_id}`);
-            if (dbProf && dbProf.length > 0) {
-              matchedProfile = dbProf[0];
-            }
           }
         } catch (e) {
-          console.warn('Direct Supabase query warning:', e);
+          console.warn('SDK Supabase query warning:', e);
         }
       }
 
-      // If remote query returned 0 rows (e.g. if RLS policy on employee_records blocks anon client),
-      // look up in the local verified registry
+      // If remote query returned 0 rows, check local verified records
       if (!matchedEmp) {
         const [profilesRes, empRes] = await Promise.all([
           fetchTableData('profiles'),
@@ -142,6 +164,15 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
+      // Guard: Check if employee was found before accessing properties
+      if (!matchedEmp && !matchedProfile) {
+        recordFailedAttempt(identifier || 'default');
+        return { 
+          success: false, 
+          message: `No employee record found with email '${identifier}' in the database directory. Please check the email and try again.` 
+        };
+      }
+
       // Determine user role based on designation or profiles table
       let assignedRole = 'employee';
       const desId = Number(matchedEmp?.designation_id);
@@ -157,7 +188,7 @@ export const AuthProvider = ({ children }) => {
         assignedRole = 'employee'; // Software Developer / General Staff
       }
 
-      if (!matchedProfile) {
+      if (!matchedProfile && matchedEmp) {
         matchedProfile = {
           id: matchedEmp.employee_id,
           employee_id: matchedEmp.employee_id,
@@ -165,16 +196,8 @@ export const AuthProvider = ({ children }) => {
           full_name: `${matchedEmp.first_name || ''} ${matchedEmp.last_name || ''}`.trim() || 'Employee',
           role: assignedRole,
         };
-      } else {
+      } else if (matchedProfile) {
         matchedProfile.role = assignedRole;
-      }
-
-      if (!matchedEmp && !matchedProfile) {
-        recordFailedAttempt(identifier || 'default');
-        return { 
-          success: false, 
-          message: `No record found for email '${identifier}' in the employee_records database table. If this employee is in Supabase, make sure Row Level Security (RLS) is disabled or has a SELECT policy.` 
-        };
       }
 
       // 3. STRICT PORTAL SEGREGATION
@@ -212,12 +235,12 @@ export const AuthProvider = ({ children }) => {
       resetRateLimit(identifier || 'default');
 
       const authenticatedUser = {
-        id: matchedProfile.id,
-        employee_id: matchedEmp?.employee_id || matchedProfile.employee_id || 'EMP001',
-        email: matchedEmp?.email || matchedProfile.email,
-        full_name: matchedProfile.full_name || `${matchedEmp?.first_name || ''} ${matchedEmp?.last_name || ''}`.trim(),
-        role: matchedProfile.role,
-        avatar_url: matchedProfile.avatar_url || 'https://images.unsplash.com/photo-1534528741775?w=150',
+        id: matchedProfile?.id || matchedEmp?.employee_id || 'EMP001',
+        employee_id: matchedEmp?.employee_id || matchedProfile?.employee_id || 'EMP001',
+        email: matchedEmp?.email || matchedProfile?.email,
+        full_name: matchedProfile?.full_name || `${matchedEmp?.first_name || ''} ${matchedEmp?.last_name || ''}`.trim(),
+        role: matchedProfile?.role || assignedRole,
+        avatar_url: matchedProfile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775?w=150',
         phone: matchedEmp?.phone || '',
         department_id: matchedEmp?.department_id,
         designation_id: matchedEmp?.designation_id,
@@ -240,7 +263,10 @@ export const AuthProvider = ({ children }) => {
       return { success: true, user: authenticatedUser };
     } catch (err) {
       console.error('Authentication error:', err);
-      return { success: false, message: 'Authentication server error. Please try again.' };
+      return { 
+        success: false, 
+        message: err.message ? `Login error: ${err.message}` : 'Authentication server error. Please try again.' 
+      };
     }
   };
 

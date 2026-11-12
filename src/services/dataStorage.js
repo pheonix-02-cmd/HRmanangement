@@ -1,7 +1,7 @@
-import { getSupabaseClient } from '../config/supabase';
+import { getSupabaseClient, supabaseDirectFetch } from '../config/supabase';
 import * as initialData from '../mock/seedData';
 
-const STORAGE_PREFIX = 'nexus_hrms_';
+const STORAGE_PREFIX = 'nexus_hrms_v4_';
 
 const TABLE_SEEDS = {
   departments: initialData.initialDepartments,
@@ -45,12 +45,32 @@ export const getPrimaryKeyColumn = (tableName) => {
 };
 
 export const fetchTableData = async (tableName) => {
-  const supabase = getSupabaseClient();
+  // 1. First attempt: Direct HTTP query to Supabase PostgREST (bypasses all SDK & client caching)
+  try {
+    const directData = await supabaseDirectFetch(tableName, 'select=*');
+    if (directData && Array.isArray(directData) && directData.length > 0) {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(STORAGE_PREFIX + tableName, JSON.stringify(directData));
+        } catch (e) {}
+      }
+      return { data: directData, error: null, source: 'supabase_direct' };
+    }
+  } catch (err) {
+    // fallback to SDK
+  }
 
+  // 2. Second attempt: Supabase JS SDK client
+  const supabase = getSupabaseClient();
   if (supabase) {
     try {
       const { data, error } = await supabase.from(tableName).select('*');
       if (!error && Array.isArray(data) && data.length > 0) {
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(STORAGE_PREFIX + tableName, JSON.stringify(data));
+          } catch (e) {}
+        }
         return { data, error: null, source: 'supabase' };
       }
     } catch (err) {
@@ -58,12 +78,15 @@ export const fetchTableData = async (tableName) => {
     }
   }
 
-  // Fallback to local storage or initial seed
+  // 3. Fallback to local storage or initial seed
   if (typeof window !== 'undefined') {
     const cached = localStorage.getItem(STORAGE_PREFIX + tableName);
     if (cached) {
       try {
-        return { data: JSON.parse(cached), error: null, source: 'local_storage' };
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return { data: parsed, error: null, source: 'local_storage' };
+        }
       } catch (e) {
         console.error(e);
       }
