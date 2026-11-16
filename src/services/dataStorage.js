@@ -1,4 +1,4 @@
-import { getSupabaseClient, supabaseDirectFetch } from '../config/supabase';
+import { getSupabaseClient, supabaseDirectFetch, supabaseDirectInsert, supabaseDirectUpdate } from '../config/supabase';
 import * as initialData from '../mock/seedData';
 
 const STORAGE_PREFIX = 'nexus_hrms_v4_';
@@ -61,7 +61,7 @@ export const fetchTableData = async (tableName, customQuery = '') => {
       else q = 'select=*';
     }
     const directData = await supabaseDirectFetch(tableName, q);
-    if (directData && Array.isArray(directData) && directData.length > 0) {
+    if (directData !== null && Array.isArray(directData)) {
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem(STORAGE_PREFIX + tableName, JSON.stringify(directData));
@@ -78,7 +78,7 @@ export const fetchTableData = async (tableName, customQuery = '') => {
   if (supabase) {
     try {
       const { data, error } = await supabase.from(tableName).select('*');
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         if (typeof window !== 'undefined') {
           try {
             localStorage.setItem(STORAGE_PREFIX + tableName, JSON.stringify(data));
@@ -113,54 +113,94 @@ export const fetchTableData = async (tableName, customQuery = '') => {
 };
 
 export const insertTableRow = async (tableName, newRow) => {
-  const supabase = getSupabaseClient();
   const pkCol = getPrimaryKeyColumn(tableName);
   let rowToInsert = { ...newRow };
 
   // Sanitize attendance rows for PostgreSQL schema
   if (tableName === 'attendance') {
-    if (rowToInsert.attendance_id && String(rowToInsert.attendance_id).startsWith('att-')) {
+    if (rowToInsert.attendance_id && (String(rowToInsert.attendance_id).startsWith('att-') || !rowToInsert.attendance_id)) {
       delete rowToInsert.attendance_id; // let PostgreSQL generate valid UUID
     }
     if (!rowToInsert.attendance_date) {
       rowToInsert.attendance_date = new Date().toISOString().split('T')[0];
     }
+    delete rowToInsert.punch_in;
+    delete rowToInsert.punch_out;
+    delete rowToInsert.id;
   }
 
-  let savedRow = rowToInsert;
+  let savedRow = null;
 
-  if (supabase) {
-    try {
-      const { data, error } = await supabase.from(tableName).insert([rowToInsert]).select();
-      if (!error && data && data.length > 0) {
-        savedRow = data[0];
+  // 1. Direct HTTP insert
+  try {
+    const directRes = await supabaseDirectInsert(tableName, rowToInsert);
+    if (directRes) {
+      savedRow = directRes;
+    }
+  } catch (err) {
+    console.warn(`Direct insert failed for ${tableName}:`, err);
+  }
+
+  // 2. Supabase SDK insert fallback
+  if (!savedRow) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from(tableName).insert([rowToInsert]).select();
+        if (!error && data && data.length > 0) {
+          savedRow = data[0];
+        }
+      } catch (err) {
+        // silent fallback
       }
-    } catch (err) {
-      // silent fallback
     }
   }
+
+  const finalRow = savedRow || rowToInsert;
 
   if (typeof window !== 'undefined') {
     const cached = localStorage.getItem(STORAGE_PREFIX + tableName);
     const list = cached ? JSON.parse(cached) : (TABLE_SEEDS[tableName] || []);
-    const rowToSave = savedRow[pkCol] ? savedRow : { [pkCol]: `${tableName.slice(0, 3)}-${Date.now()}`, ...savedRow };
+    const rowToSave = finalRow[pkCol] ? finalRow : { [pkCol]: `${tableName.slice(0, 3)}-${Date.now()}`, ...finalRow };
     const updated = [rowToSave, ...list];
     localStorage.setItem(STORAGE_PREFIX + tableName, JSON.stringify(updated));
     return rowToSave;
   }
 
-  return newRow;
+  return finalRow;
 };
 
 export const updateTableRow = async (tableName, idValue, updates) => {
-  const supabase = getSupabaseClient();
   const pkCol = getPrimaryKeyColumn(tableName);
+  let cleanUpdates = { ...updates };
 
-  if (supabase) {
-    try {
-      await supabase.from(tableName).update(updates).eq(pkCol, idValue);
-    } catch (err) {
-      // silent fallback
+  if (tableName === 'attendance') {
+    delete cleanUpdates.punch_in;
+    delete cleanUpdates.punch_out;
+    delete cleanUpdates.id;
+  }
+
+  let updatedRow = null;
+
+  // 1. Direct HTTP update
+  try {
+    const directRes = await supabaseDirectUpdate(tableName, pkCol, idValue, cleanUpdates);
+    if (directRes) {
+      updatedRow = directRes;
+    }
+  } catch (err) {
+    console.warn(`Direct update failed for ${tableName}:`, err);
+  }
+
+  // 2. Supabase SDK fallback
+  if (!updatedRow) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.from(tableName).update(cleanUpdates).eq(pkCol, idValue);
+      } catch (err) {
+        // silent fallback
+      }
     }
   }
 
@@ -169,13 +209,13 @@ export const updateTableRow = async (tableName, idValue, updates) => {
     const list = cached ? JSON.parse(cached) : (TABLE_SEEDS[tableName] || []);
     const updated = list.map(item => {
       const currentId = item[pkCol] || item.id;
-      return currentId === idValue ? { ...item, ...updates } : item;
+      return currentId === idValue ? { ...item, ...cleanUpdates } : item;
     });
     localStorage.setItem(STORAGE_PREFIX + tableName, JSON.stringify(updated));
     return updated.find(item => (item[pkCol] || item.id) === idValue);
   }
 
-  return { [pkCol]: idValue, ...updates };
+  return { [pkCol]: idValue, ...cleanUpdates };
 };
 
 export const deleteTableRow = async (tableName, idValue) => {
