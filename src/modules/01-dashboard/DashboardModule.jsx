@@ -91,8 +91,11 @@ export const DashboardModule = ({ onNavigate }) => {
   const myLeaves = leaveRequests.filter(l => String(l.employee_id || '').trim().toUpperCase() === currentEmpId);
   const pendingLeaves = leaveRequests.filter(l => l.status === 'pending');
   const activeJobs = jobPostings.filter(j => j.status === 'published' || j.status === 'Published');
-  const presentToday = attendance.filter(a => a.status === 'present' || a.status === 'Present').length;
-  const attendanceRate = employees.length > 0 ? Math.round((presentToday / employees.length) * 100) : 92;
+  const totalAttendanceLogged = attendance.length;
+  const totalPresentLogged = attendance.filter(a => String(a.status || '').toLowerCase() === 'present').length;
+  const attendanceRate = totalAttendanceLogged > 0
+    ? Math.min(100, Math.round((totalPresentLogged / totalAttendanceLogged) * 100))
+    : 92;
 
   // Locate the employee's personal performance record from the performance table
   const rawPerf = performanceList.find(p => String(p.employee_id || '').trim().toUpperCase() === currentEmpId);
