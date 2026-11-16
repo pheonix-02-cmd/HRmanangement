@@ -41,6 +41,14 @@ export const RecruitmentModule = () => {
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState({ type: '', text: '' });
 
+  // Job opening creation restricted strictly to HR & Admin
+  const isHR = user?.role === 'hr' || 
+               user?.role === 'admin' || 
+               Number(user?.department_id) === 102 || 
+               String(user?.department || '').toLowerCase().includes('hr') ||
+               String(user?.designation || '').toLowerCase().includes('hr') ||
+               ['EMP001', 'EMP002', 'EMP003', 'EMP004'].includes(user?.employee_id);
+
   // Creation Mode: 'existing' | 'new_dept'
   const [jobMode, setJobMode] = useState('existing');
 
@@ -185,6 +193,10 @@ export const RecruitmentModule = () => {
   // Create Job Opening (Existing or New Department)
   const handleCreateJob = async (e) => {
     e.preventDefault();
+    if (!isHR) {
+      setStatusMessage({ type: 'error', text: 'Unauthorized: Only HR personnel are authorized to post job openings.' });
+      return;
+    }
     setSubmitting(true);
     setStatusMessage({ type: '', text: '' });
 
@@ -216,12 +228,9 @@ export const RecruitmentModule = () => {
         targetDeptId = nextDeptId;
       }
 
-      const numericJobId = Math.floor(Date.now() % 1000000);
       const creatorId = user?.employee_id || 'EMP001';
 
       const created = {
-        job_id: numericJobId,
-        id: `job-${numericJobId}`,
         job_title: sanitizeInput(newJob.title),
         title: sanitizeInput(newJob.title),
         department_id: Number(targetDeptId),
@@ -240,6 +249,21 @@ export const RecruitmentModule = () => {
       };
 
       await insertTableRow('job_postings', created);
+
+      // Automatically post to company_announcements as well
+      try {
+        await insertTableRow('company_announcements', {
+          title: `New Job Opening: ${sanitizeInput(newJob.title)}`,
+          message: `We are actively hiring for ${sanitizeInput(newJob.title)} in ${getDeptName(targetDeptId)}. Openings: ${newJob.openings || 1}. ${sanitizeInput(newJob.description) || ''}`,
+          announcement_type: 'Notice',
+          created_by: creatorId,
+          is_published: true,
+          created_at: new Date().toISOString()
+        });
+      } catch (annErr) {
+        console.warn('Notice creation alongside job posting:', annErr);
+      }
+
       setIsNewJobModalOpen(false);
       setNewDeptForm({ name: '', description: '' });
       setStatusMessage({ type: 'success', text: 'Job opening successfully posted and saved to database!' });
@@ -363,16 +387,22 @@ export const RecruitmentModule = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setIsNewJobModalOpen(true);
-            setJobMode('existing');
-          }}
-          className="px-3.5 py-2 rounded-lg text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 flex items-center space-x-1.5 transition shadow-xs"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Post New Job Opening</span>
-        </button>
+        {isHR ? (
+          <button
+            onClick={() => {
+              setIsNewJobModalOpen(true);
+              setJobMode('existing');
+            }}
+            className="px-3.5 py-2 rounded-lg text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 flex items-center space-x-1.5 transition shadow-xs"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Post New Job Opening</span>
+          </button>
+        ) : (
+          <div className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+            Posting restricted to HR
+          </div>
+        )}
       </div>
 
       {/* Sub tabs */}
@@ -432,15 +462,21 @@ export const RecruitmentModule = () => {
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
                 Create your first opening in an existing department or introduce a new department position.
               </p>
-              <button
-                onClick={() => {
-                  setIsNewJobModalOpen(true);
-                  setJobMode('existing');
-                }}
-                className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 transition"
-              >
-                + Post Job Opening
-              </button>
+              {isHR ? (
+                <button
+                  onClick={() => {
+                    setIsNewJobModalOpen(true);
+                    setJobMode('existing');
+                  }}
+                  className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 transition"
+                >
+                  + Post Job Opening
+                </button>
+              ) : (
+                <p className="mt-3 text-xs text-slate-400 font-medium">
+                  Job openings are managed and posted exclusively by the HR Department.
+                </p>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

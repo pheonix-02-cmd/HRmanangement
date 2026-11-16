@@ -45,9 +45,41 @@ export const getPrimaryKeyColumn = (tableName) => {
     payroll: 'payroll_id',
     payslips: 'payslip_id',
     grievances: 'grievance_id',
+    company_announcements: 'announcement_id',
+    messages_notifications: 'notification_id',
     profiles: 'id'
   };
   return map[tableName] || 'id';
+};
+
+const normalizeTableRows = (tableName, rows) => {
+  if (!Array.isArray(rows)) return rows;
+  if (tableName === 'job_postings') {
+    return rows.map(j => ({
+      ...j,
+      id: j.job_id !== undefined ? j.job_id : j.id,
+      title: j.job_title || j.title || '',
+      description: j.job_description || j.description || '',
+      openings: j.vacancies !== undefined ? j.vacancies : (j.openings || 1)
+    }));
+  }
+  if (tableName === 'company_announcements') {
+    return rows.map(a => ({
+      ...a,
+      id: a.announcement_id || a.id,
+      content: a.message || a.content || '',
+      type: a.announcement_type || a.type || 'Announcement'
+    }));
+  }
+  if (tableName === 'messages_notifications') {
+    return rows.map(m => ({
+      ...m,
+      id: m.notification_id || m.id,
+      desc: m.message || m.desc || '',
+      unread: !m.is_read
+    }));
+  }
+  return rows;
 };
 
 export const fetchTableData = async (tableName, customQuery = '') => {
@@ -58,16 +90,20 @@ export const fetchTableData = async (tableName, customQuery = '') => {
       if (tableName === 'attendance') q = 'select=*&order=attendance_date.desc&limit=1000';
       else if (tableName === 'payroll') q = 'select=*&order=pay_period.desc';
       else if (tableName === 'payslips') q = 'select=*&order=payslip_id.desc';
+      else if (tableName === 'company_announcements') q = 'select=*&order=created_at.desc';
+      else if (tableName === 'messages_notifications') q = 'select=*&order=created_at.desc';
+      else if (tableName === 'job_postings') q = 'select=*&order=created_at.desc';
       else q = 'select=*';
     }
     const directData = await supabaseDirectFetch(tableName, q);
     if (directData !== null && Array.isArray(directData)) {
+      const normalized = normalizeTableRows(tableName, directData);
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem(STORAGE_PREFIX + tableName, JSON.stringify(directData));
+          localStorage.setItem(STORAGE_PREFIX + tableName, JSON.stringify(normalized));
         } catch (e) {}
       }
-      return { data: directData, error: null, source: 'supabase_direct' };
+      return { data: normalized, error: null, source: 'supabase_direct' };
     }
   } catch (err) {
     // fallback to SDK
@@ -79,12 +115,13 @@ export const fetchTableData = async (tableName, customQuery = '') => {
     try {
       const { data, error } = await supabase.from(tableName).select('*');
       if (!error && Array.isArray(data)) {
+        const normalized = normalizeTableRows(tableName, data);
         if (typeof window !== 'undefined') {
           try {
-            localStorage.setItem(STORAGE_PREFIX + tableName, JSON.stringify(data));
+            localStorage.setItem(STORAGE_PREFIX + tableName, JSON.stringify(normalized));
           } catch (e) {}
         }
-        return { data, error: null, source: 'supabase' };
+        return { data: normalized, error: null, source: 'supabase' };
       }
     } catch (err) {
       // silent fallback
@@ -98,18 +135,18 @@ export const fetchTableData = async (tableName, customQuery = '') => {
       try {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return { data: parsed, error: null, source: 'local_storage' };
+          return { data: normalizeTableRows(tableName, parsed), error: null, source: 'local_storage' };
         }
       } catch (e) {
         console.error(e);
       }
     }
-    const seed = TABLE_SEEDS[tableName] || [];
+    const seed = normalizeTableRows(tableName, TABLE_SEEDS[tableName] || []);
     localStorage.setItem(STORAGE_PREFIX + tableName, JSON.stringify(seed));
     return { data: seed, error: null, source: 'seed' };
   }
 
-  return { data: TABLE_SEEDS[tableName] || [], error: null, source: 'seed' };
+  return { data: normalizeTableRows(tableName, TABLE_SEEDS[tableName] || []), error: null, source: 'seed' };
 };
 
 export const insertTableRow = async (tableName, newRow) => {
@@ -127,6 +164,86 @@ export const insertTableRow = async (tableName, newRow) => {
     delete rowToInsert.punch_in;
     delete rowToInsert.punch_out;
     delete rowToInsert.id;
+  }
+
+  // Sanitize job_postings rows for PostgreSQL schema
+  if (tableName === 'job_postings') {
+    const validCols = [
+      'job_id', 'job_title', 'department_id', 'job_description',
+      'required_skills', 'qualification', 'experience_required',
+      'employment_type', 'salary_range', 'vacancies', 'location',
+      'posted_date', 'closing_date', 'created_by', 'status', 'created_at', 'updated_at'
+    ];
+    if (!rowToInsert.job_title && rowToInsert.title) rowToInsert.job_title = rowToInsert.title;
+    if (!rowToInsert.job_description && rowToInsert.description) rowToInsert.job_description = rowToInsert.description;
+    if (rowToInsert.vacancies === undefined && rowToInsert.openings !== undefined) rowToInsert.vacancies = Number(rowToInsert.openings);
+    if (!rowToInsert.employment_type) rowToInsert.employment_type = 'Full-Time';
+    if (!rowToInsert.status) rowToInsert.status = 'Published';
+    if (!rowToInsert.created_by) rowToInsert.created_by = 'EMP001';
+    if (!rowToInsert.posted_date) rowToInsert.posted_date = new Date().toISOString().split('T')[0];
+    if (!rowToInsert.created_at) rowToInsert.created_at = new Date().toISOString();
+    if (!rowToInsert.updated_at) rowToInsert.updated_at = new Date().toISOString();
+    // Delete non-schema and client mock fields so PostgreSQL/PostgREST does not reject
+    delete rowToInsert.job_id; // sequence generates valid integer
+    delete rowToInsert.id;
+    delete rowToInsert.title;
+    delete rowToInsert.description;
+    delete rowToInsert.openings;
+
+    const sanitized = {};
+    for (const col of validCols) {
+      if (rowToInsert[col] !== undefined) sanitized[col] = rowToInsert[col];
+    }
+    rowToInsert = sanitized;
+  }
+
+  // Sanitize company_announcements rows for PostgreSQL schema
+  if (tableName === 'company_announcements') {
+    const validCols = [
+      'announcement_id', 'title', 'message', 'announcement_type',
+      'created_by', 'created_at', 'expires_at', 'is_published'
+    ];
+    if (!rowToInsert.message && rowToInsert.content) rowToInsert.message = rowToInsert.content;
+    if (!rowToInsert.announcement_type && rowToInsert.type) rowToInsert.announcement_type = rowToInsert.type;
+    if (rowToInsert.is_published === undefined) rowToInsert.is_published = true;
+    if (!rowToInsert.created_by) rowToInsert.created_by = 'EMP001';
+    if (!rowToInsert.created_at) rowToInsert.created_at = new Date().toISOString();
+    if (rowToInsert.announcement_id && (String(rowToInsert.announcement_id).startsWith('ann-') || !rowToInsert.announcement_id)) {
+      delete rowToInsert.announcement_id;
+    }
+    delete rowToInsert.id;
+    delete rowToInsert.content;
+    delete rowToInsert.type;
+
+    const sanitized = {};
+    for (const col of validCols) {
+      if (rowToInsert[col] !== undefined) sanitized[col] = rowToInsert[col];
+    }
+    rowToInsert = sanitized;
+  }
+
+  // Sanitize messages_notifications rows for PostgreSQL schema
+  if (tableName === 'messages_notifications') {
+    const validCols = [
+      'notification_id', 'sender_employee_id', 'receiver_employee_id',
+      'title', 'message', 'notification_type', 'is_read', 'created_at'
+    ];
+    if (!rowToInsert.message && rowToInsert.desc) rowToInsert.message = rowToInsert.desc;
+    if (!rowToInsert.notification_type && rowToInsert.type) rowToInsert.notification_type = rowToInsert.type;
+    if (rowToInsert.is_read === undefined) rowToInsert.is_read = false;
+    if (!rowToInsert.created_at) rowToInsert.created_at = new Date().toISOString();
+    if (rowToInsert.notification_id && (String(rowToInsert.notification_id).startsWith('notif-') || !rowToInsert.notification_id)) {
+      delete rowToInsert.notification_id;
+    }
+    delete rowToInsert.id;
+    delete rowToInsert.desc;
+    delete rowToInsert.type;
+
+    const sanitized = {};
+    for (const col of validCols) {
+      if (rowToInsert[col] !== undefined) sanitized[col] = rowToInsert[col];
+    }
+    rowToInsert = sanitized;
   }
 
   let savedRow = null;
@@ -178,6 +295,30 @@ export const updateTableRow = async (tableName, idValue, updates) => {
     delete cleanUpdates.punch_in;
     delete cleanUpdates.punch_out;
     delete cleanUpdates.id;
+  }
+
+  if (tableName === 'job_postings') {
+    if (!cleanUpdates.job_title && cleanUpdates.title) cleanUpdates.job_title = cleanUpdates.title;
+    if (!cleanUpdates.job_description && cleanUpdates.description) cleanUpdates.job_description = cleanUpdates.description;
+    if (cleanUpdates.vacancies === undefined && cleanUpdates.openings !== undefined) cleanUpdates.vacancies = Number(cleanUpdates.openings);
+    delete cleanUpdates.id;
+    delete cleanUpdates.title;
+    delete cleanUpdates.description;
+    delete cleanUpdates.openings;
+  }
+
+  if (tableName === 'company_announcements') {
+    if (!cleanUpdates.message && cleanUpdates.content) cleanUpdates.message = cleanUpdates.content;
+    if (!cleanUpdates.announcement_type && cleanUpdates.type) cleanUpdates.announcement_type = cleanUpdates.type;
+    delete cleanUpdates.id;
+    delete cleanUpdates.content;
+    delete cleanUpdates.type;
+  }
+
+  if (tableName === 'messages_notifications') {
+    if (!cleanUpdates.message && cleanUpdates.desc) cleanUpdates.message = cleanUpdates.desc;
+    delete cleanUpdates.id;
+    delete cleanUpdates.desc;
   }
 
   let updatedRow = null;
