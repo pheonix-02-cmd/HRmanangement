@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Play, Square, Calendar, CheckCircle2 } from 'lucide-react';
+import { 
+  Clock, 
+  Play, 
+  Square, 
+  Calendar, 
+  CheckCircle2, 
+  RefreshCw, 
+  Search, 
+  Users, 
+  AlertCircle 
+} from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { useAuth } from '../../context/AuthContext';
 import { fetchTableData, insertTableRow, updateTableRow } from '../../services/dataStorage';
@@ -8,20 +18,48 @@ export const AttendanceModule = () => {
   const { user } = useAuth();
   const [attendanceList, setAttendanceList] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [profiles, setProfiles] = useState([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const todayStr = new Date().toISOString().split('T')[0];
+  const currentEmpId = String(user?.employee_id || user?.id || '').trim().toUpperCase();
+  const isEmployee = user?.role === 'employee';
+
+  const formatAttendanceDate = (att) => {
+    const raw = att.attendance_date || att.date || (att.created_at ? att.created_at.split('T')[0] : null);
+    return raw || todayStr;
+  };
+
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '--:--';
+    if (typeof timeStr === 'string' && timeStr.includes('T')) {
+      try {
+        const d = new Date(timeStr);
+        return isNaN(d.getTime()) 
+          ? timeStr 
+          : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      } catch (e) {
+        return timeStr;
+      }
+    }
+    return String(timeStr).slice(0, 5);
+  };
 
   const loadAttendance = async () => {
-    const [attRes, empRes, profRes] = await Promise.all([
-      fetchTableData('attendance'),
-      fetchTableData('employee_records'),
-      fetchTableData('profiles'),
-    ]);
-    setAttendanceList(attRes.data || []);
-    setEmployees(empRes.data || []);
-    setProfiles(profRes.data || []);
+    setLoading(true);
+    try {
+      const [attRes, empRes] = await Promise.all([
+        fetchTableData('attendance'),
+        fetchTableData('employee_records')
+      ]);
+      setAttendanceList(attRes.data || []);
+      setEmployees(empRes.data || []);
+    } catch (err) {
+      console.error('Failed to load attendance:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -30,48 +68,78 @@ export const AttendanceModule = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const currentEmpId = user?.employee_id || user?.id;
-  const userTodayRecord = attendanceList.find(a => a.employee_id === currentEmpId);
+  // Locate today's active record for the current user
+  const userTodayRecord = attendanceList.find(a => {
+    const matchesEmp = String(a.employee_id || '').trim().toUpperCase() === currentEmpId;
+    const aDate = a.attendance_date || a.date || (a.created_at ? a.created_at.split('T')[0] : '');
+    return matchesEmp && aDate === todayStr;
+  });
 
   const punchInTime = userTodayRecord?.check_in || userTodayRecord?.punch_in;
   const punchOutTime = userTodayRecord?.check_out || userTodayRecord?.punch_out;
   const isClockedIn = Boolean(userTodayRecord && punchInTime && !punchOutTime);
+  const isShiftCompleted = Boolean(userTodayRecord && punchInTime && punchOutTime);
 
   const handleClockIn = async () => {
-    const timeStr = currentTime.toTimeString().split(' ')[0].slice(0, 5);
-    const newId = `att-${Date.now().toString().slice(-4)}`;
+    const now = new Date();
+    const isoNow = now.toISOString();
+    const timeShort = now.toTimeString().split(' ')[0].slice(0, 5);
+    const isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 15);
+    const status = isLate ? 'Late' : 'Present';
+
     const newRecord = {
-      attendance_id: newId,
       employee_id: currentEmpId,
-      check_in: timeStr,
-      punch_in: timeStr,
+      attendance_date: todayStr,
+      check_in: isoNow,
+      punch_in: timeShort,
       check_out: null,
       punch_out: null,
-      status: currentTime.getHours() >= 9 && currentTime.getMinutes() > 15 ? 'late' : 'present',
-      created_at: new Date().toISOString()
+      status: status,
+      created_at: isoNow
     };
+
     await insertTableRow('attendance', newRecord);
     await loadAttendance();
   };
 
   const handleClockOut = async () => {
     if (!userTodayRecord) return;
-    const timeStr = currentTime.toTimeString().split(' ')[0].slice(0, 5);
+    const now = new Date();
+    const isoNow = now.toISOString();
+    const timeShort = now.toTimeString().split(' ')[0].slice(0, 5);
     const attId = userTodayRecord.attendance_id || userTodayRecord.id;
 
     await updateTableRow('attendance', attId, {
-      check_out: timeStr,
-      punch_out: timeStr,
-      status: 'present'
+      check_out: isoNow,
+      punch_out: timeShort,
+      status: userTodayRecord.status || 'Present'
     });
     await loadAttendance();
   };
 
   // Data Scoping: Employees ONLY see their own attendance records
-  const isEmployee = user?.role === 'employee';
+  // Managers and Admins see organization-wide records
   const scopedAttendance = isEmployee
-    ? attendanceList.filter(att => att.employee_id === currentEmpId)
+    ? attendanceList.filter(att => String(att.employee_id || '').trim().toUpperCase() === currentEmpId)
     : attendanceList;
+
+  // Filter and sort attendance records (latest dates first)
+  const displayAttendance = scopedAttendance
+    .filter(att => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      const emp = employees.find(e => String(e.employee_id || e.id).toUpperCase() === String(att.employee_id).toUpperCase());
+      const empName = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.toLowerCase() : '';
+      const empId = String(att.employee_id || '').toLowerCase();
+      const dateStr = formatAttendanceDate(att).toLowerCase();
+      const statusStr = String(att.status || '').toLowerCase();
+      return empName.includes(q) || empId.includes(q) || dateStr.includes(q) || statusStr.includes(q);
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.attendance_date || a.date || a.created_at || 0);
+      const dateB = new Date(b.attendance_date || b.date || b.created_at || 0);
+      return dateB - dateA;
+    });
 
   return (
     <div className="space-y-6">
@@ -79,16 +147,29 @@ export const AttendanceModule = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-            {isEmployee ? 'My Attendance Record' : 'Attendance Records'}
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+            <span>{isEmployee ? 'My Attendance Record' : 'Attendance & Shift Operations'}</span>
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {isEmployee ? 'Personal shift clock-in and daily work logs' : 'Organization-wide clock-in logs and daily shifts'}
+            {isEmployee 
+              ? `Personal shift clock-in and daily work logs for ${user?.name || currentEmpId}` 
+              : 'Organization-wide clock-in logs, biometric shift audits, and attendance records'}
           </p>
         </div>
 
-        <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-          {currentTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={loadAttendance}
+            disabled={loading}
+            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition"
+            title="Refresh from Supabase"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-teal-600' : ''}`} />
+          </button>
+
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            {currentTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+          </div>
         </div>
       </div>
 
@@ -96,7 +177,7 @@ export const AttendanceModule = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Live Punch Card */}
-        <div className="rounded-xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+        <div className="rounded-xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs">
           <div>
             <div className="text-center py-4">
               <div className="text-3xl font-bold font-mono text-slate-900 dark:text-white">
@@ -109,13 +190,13 @@ export const AttendanceModule = () => {
               <div className="flex justify-between">
                 <span className="text-slate-400">Punch In:</span>
                 <span className="font-mono font-medium text-slate-800 dark:text-slate-200">
-                  {punchInTime || '--:--'}
+                  {punchInTime ? formatTime(punchInTime) : '--:--'}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Punch Out:</span>
                 <span className="font-mono font-medium text-slate-800 dark:text-slate-200">
-                  {punchOutTime || (isClockedIn ? 'In Progress' : '--:--')}
+                  {punchOutTime ? formatTime(punchOutTime) : (isClockedIn ? 'In Progress' : '--:--')}
                 </span>
               </div>
               <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-1.5 font-medium">
@@ -134,7 +215,7 @@ export const AttendanceModule = () => {
                 className="w-full py-2.5 rounded-lg text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 transition flex items-center justify-center space-x-1.5"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Clock In</span>
+                <span>Clock In for Today</span>
               </button>
             ) : isClockedIn ? (
               <button
@@ -142,18 +223,19 @@ export const AttendanceModule = () => {
                 className="w-full py-2.5 rounded-lg text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 transition flex items-center justify-center space-x-1.5"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
-                <span>Clock Out</span>
+                <span>Clock Out for Today</span>
               </button>
             ) : (
-              <div className="p-2 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-center text-xs text-teal-700 dark:text-teal-400 font-medium">
-                Shift completed for today
+              <div className="w-full py-2 rounded-lg text-xs font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-center border border-emerald-200 dark:border-emerald-800 flex items-center justify-center space-x-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>Shift completed for today</span>
               </div>
             )}
           </div>
         </div>
 
         {/* Summary Stats */}
-        <div className="lg:col-span-2 rounded-xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+        <div className="lg:col-span-2 rounded-xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs">
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Shift Parameters</h3>
 
@@ -181,10 +263,25 @@ export const AttendanceModule = () => {
       </div>
 
       {/* Attendance Register */}
-      <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4">
-        <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">
-          {isEmployee ? 'My Attendance History' : 'Enterprise Attendance Register'}
-        </h3>
+      <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+            {isEmployee ? 'My Attendance History' : 'Enterprise Attendance Register'}
+          </h3>
+
+          {!isEmployee && (
+            <div className="relative sm:w-72">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name, EMP ID, date, status..."
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:border-teal-500"
+              />
+            </div>
+          )}
+        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -198,40 +295,68 @@ export const AttendanceModule = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-mono">
-              {scopedAttendance.map((att) => {
+              {displayAttendance.map((att) => {
                 const attId = att.attendance_id || att.id;
-                const emp = employees.find(e => (e.employee_id || e.id) === att.employee_id);
+                const emp = employees.find(e => String(e.employee_id || e.id).toUpperCase() === String(att.employee_id).toUpperCase());
                 const empName = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() : att.employee_id;
+                const dateDisplay = formatAttendanceDate(att);
+                const checkInDisplay = formatTime(att.check_in || att.punch_in);
+                const checkOutDisplay = formatTime(att.check_out || att.punch_out);
+                const rawStatus = (att.status || 'Present').toLowerCase();
 
                 return (
-                  <tr key={attId} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                    <td className="py-2.5 px-3 font-sans text-slate-700 dark:text-slate-300">
-                      {att.created_at ? att.created_at.split('T')[0] : todayStr}
+                  <tr key={attId} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                    <td className="py-2.5 px-3 font-sans text-slate-700 dark:text-slate-300 font-medium">
+                      {dateDisplay}
                     </td>
                     <td className="py-2.5 px-3 font-sans">
                       <span className="font-medium text-slate-900 dark:text-white">{empName}</span>
                       <span className="text-[10px] text-slate-400 font-mono ml-1.5">({att.employee_id})</span>
                     </td>
                     <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
-                      {att.check_in || att.punch_in || '--:--'}
+                      {checkInDisplay}
                     </td>
                     <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
-                      {att.check_out || att.punch_out || '--:--'}
+                      {checkOutDisplay}
                     </td>
                     <td className="py-2.5 px-3 font-sans">
                       <Badge
                         variant={
-                          att.status === 'present' ? 'success' :
-                          att.status === 'late' ? 'warning' : 'neutral'
+                          rawStatus === 'present' ? 'success' :
+                          rawStatus === 'late' ? 'warning' : 
+                          rawStatus === 'half day' ? 'neutral' : 'danger'
                         }
                         size="xs"
                       >
-                        {att.status || 'present'}
+                        {att.status || 'Present'}
                       </Badge>
                     </td>
                   </tr>
                 );
               })}
+
+              {displayAttendance.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={5} className="text-center py-10 text-slate-400 font-sans">
+                    <Calendar className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                    <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">Data Absent</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {isEmployee 
+                        ? `No attendance records found for ${currentEmpId} in database.` 
+                        : 'No attendance records match the search filter.'}
+                    </p>
+                  </td>
+                </tr>
+              )}
+
+              {loading && displayAttendance.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="text-center py-8 text-slate-400 font-sans">
+                    <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin text-teal-600" />
+                    <p>Loading attendance records from Supabase...</p>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

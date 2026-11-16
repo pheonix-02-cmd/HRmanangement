@@ -260,13 +260,13 @@ export const PayrollModule = () => {
             })}
             {displayPayroll.length === 0 && !loading && (
               <tr>
-                <td colSpan={8} className="text-center py-8 text-slate-400 font-sans">
+                <td colSpan={8} className="text-center py-10 text-slate-400 font-sans">
                   <CreditCard className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
-                  <p className="font-medium text-slate-600 dark:text-slate-400">
-                    {isEmployee ? 'No salary records found for this account.' : 'No payroll records match your criteria.'}
-                  </p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    {isEmployee ? `Logged in as ${currentEmpId}. Verify that payroll has been disbursed.` : 'Try clearing the search query or refresh database connection.'}
+                  <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">Data Absent</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {isEmployee 
+                      ? `No salary records found for ${currentEmpId} in database.` 
+                      : 'No payroll records match your search criteria.'}
                   </p>
                 </td>
               </tr>

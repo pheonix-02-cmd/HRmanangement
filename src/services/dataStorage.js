@@ -50,10 +50,17 @@ export const getPrimaryKeyColumn = (tableName) => {
   return map[tableName] || 'id';
 };
 
-export const fetchTableData = async (tableName) => {
+export const fetchTableData = async (tableName, customQuery = '') => {
   // 1. First attempt: Direct HTTP query to Supabase PostgREST (bypasses all SDK & client caching)
   try {
-    const directData = await supabaseDirectFetch(tableName, 'select=*');
+    let q = customQuery;
+    if (!q) {
+      if (tableName === 'attendance') q = 'select=*&order=attendance_date.desc&limit=1000';
+      else if (tableName === 'payroll') q = 'select=*&order=pay_period.desc';
+      else if (tableName === 'payslips') q = 'select=*&order=payslip_id.desc';
+      else q = 'select=*';
+    }
+    const directData = await supabaseDirectFetch(tableName, q);
     if (directData && Array.isArray(directData) && directData.length > 0) {
       if (typeof window !== 'undefined') {
         try {
@@ -108,11 +115,23 @@ export const fetchTableData = async (tableName) => {
 export const insertTableRow = async (tableName, newRow) => {
   const supabase = getSupabaseClient();
   const pkCol = getPrimaryKeyColumn(tableName);
-  let savedRow = newRow;
+  let rowToInsert = { ...newRow };
+
+  // Sanitize attendance rows for PostgreSQL schema
+  if (tableName === 'attendance') {
+    if (rowToInsert.attendance_id && String(rowToInsert.attendance_id).startsWith('att-')) {
+      delete rowToInsert.attendance_id; // let PostgreSQL generate valid UUID
+    }
+    if (!rowToInsert.attendance_date) {
+      rowToInsert.attendance_date = new Date().toISOString().split('T')[0];
+    }
+  }
+
+  let savedRow = rowToInsert;
 
   if (supabase) {
     try {
-      const { data, error } = await supabase.from(tableName).insert([newRow]).select();
+      const { data, error } = await supabase.from(tableName).insert([rowToInsert]).select();
       if (!error && data && data.length > 0) {
         savedRow = data[0];
       }
