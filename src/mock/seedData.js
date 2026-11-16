@@ -99,3 +99,101 @@ export const initialPayrollDeductions = [];
 export const initialGrievanceCommunications = [];
 export const initialGrievanceResolutions = [];
 export const initialMessagesNotifications = [];
+
+export const initialReportsAnalytics = [
+  {
+    report_id: "91e632bf-3903-4e2a-9bd8-81190f626a6f",
+    report_name: "Employee Performance Summary",
+    report_type: "performance",
+    generated_by: null,
+    report_period_start: "2026-07-01",
+    report_period_end: "2026-09-30",
+    report_data: {
+      description: "Quarterly employee performance overview",
+      reviewer_id: "EMP001",
+      review_period: "Q3 2026",
+      average_rating: 4.3,
+      total_employees: 30,
+      average_progress: 86.5
+    },
+    generated_at: "2026-11-15T09:12:04.575581+00:00"
+  },
+  {
+    report_id: "216c8257-2633-432b-8e9c-6823d02edba9",
+    report_name: "Attendance Summary",
+    report_type: "attendance",
+    generated_by: null,
+    report_period_start: "2026-07-01",
+    report_period_end: "2026-09-30",
+    report_data: {
+      metrics: [
+        "Present days",
+        "Absent days",
+        "Late arrivals",
+        "Attendance percentage"
+      ],
+      description: "Quarterly employee attendance report",
+      report_category: "Attendance"
+    },
+    generated_at: "2026-11-15T09:12:04.575581+00:00"
+  },
+  {
+    report_id: "253b81ca-5d50-4d75-83d6-e2445d194bf1",
+    report_name: "Payroll Summary",
+    report_type: "payroll",
+    generated_by: null,
+    report_period_start: "2026-07-01",
+    report_period_end: "2026-09-30",
+    report_data: {
+      metrics: [
+        "Gross salary",
+        "Net salary",
+        "Total deductions",
+        "Payment status"
+      ],
+      description: "Quarterly payroll and salary overview",
+      report_category: "Payroll"
+    },
+    generated_at: "2026-11-15T09:12:04.575581+00:00"
+  },
+  {
+    report_id: "9d036f16-f53b-49d6-824f-153c2436c2d0",
+    report_name: "Recruitment Summary",
+    report_type: "recruitment",
+    generated_by: null,
+    report_period_start: "2026-07-01",
+    report_period_end: "2026-09-30",
+    report_data: {
+      metrics: [
+        "Total applications",
+        "Applications shortlisted",
+        "Interviews conducted",
+        "Candidates selected"
+      ],
+      description: "Quarterly recruitment activity overview",
+      report_category: "Recruitment"
+    },
+    generated_at: "2026-11-15T09:12:04.575581+00:00"
+  },
+  {
+    report_id: "d381b374-b4bd-4e05-8585-ebc8cb6cad8d",
+    report_name: "Management Overview",
+    report_type: "management",
+    generated_by: null,
+    report_period_start: "2026-07-01",
+    report_period_end: "2026-09-30",
+    report_data: {
+      description: "Consolidated HRMS management overview",
+      report_category: "Management",
+      modules_included: [
+        "Employee Management",
+        "Attendance",
+        "Payroll",
+        "Recruitment",
+        "Performance"
+      ]
+    },
+    generated_at: "2026-11-15T09:12:04.575581+00:00"
+  }
+];
+

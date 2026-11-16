@@ -31,6 +31,11 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing table parameter' });
   }
 
+  // Alias singular report_analytics to database table reports_analytics
+  if (table === 'report_analytics') {
+    table = 'reports_analytics';
+  }
+
   const targetUrl = `${SUPABASE_URL}/rest/v1/${table}${queryString ? '?' + queryString : ''}`;
 
   const headers = {

@@ -26,6 +26,8 @@ const TABLE_SEEDS = {
   grievance_communications: initialData.initialGrievanceCommunications,
   grievance_resolutions: initialData.initialGrievanceResolutions,
   messages_notifications: initialData.initialMessagesNotifications,
+  reports_analytics: initialData.initialReportsAnalytics,
+  report_analytics: initialData.initialReportsAnalytics,
 };
 
 export const getPrimaryKeyColumn = (tableName) => {
@@ -48,6 +50,8 @@ export const getPrimaryKeyColumn = (tableName) => {
     company_announcements: 'announcement_id',
     messages_notifications: 'notification_id',
     performance: 'performance_id',
+    reports_analytics: 'report_id',
+    report_analytics: 'report_id',
     profiles: 'id'
   };
   return map[tableName] || 'id';
@@ -80,24 +84,34 @@ const normalizeTableRows = (tableName, rows) => {
       unread: !m.is_read
     }));
   }
+  if (tableName === 'reports_analytics' || tableName === 'report_analytics') {
+    return rows.map(r => ({
+      ...r,
+      id: r.report_id || r.id,
+      report_id: r.report_id || r.id,
+      report_data: typeof r.report_data === 'string' ? JSON.parse(r.report_data) : (r.report_data || {})
+    }));
+  }
   return rows;
 };
 
 export const fetchTableData = async (tableName, customQuery = '') => {
+  const targetTable = (tableName === 'report_analytics') ? 'reports_analytics' : tableName;
   // 1. First attempt: Direct HTTP query to Supabase PostgREST (bypasses all SDK & client caching)
   try {
     let q = customQuery;
     if (!q) {
-      if (tableName === 'attendance') q = 'select=*&order=attendance_date.desc&limit=1000';
-      else if (tableName === 'payroll') q = 'select=*&order=pay_period.desc';
-      else if (tableName === 'payslips') q = 'select=*&order=payslip_id.desc';
-      else if (tableName === 'company_announcements') q = 'select=*&order=created_at.desc';
-      else if (tableName === 'messages_notifications') q = 'select=*&order=created_at.desc';
-      else if (tableName === 'job_postings') q = 'select=*&order=created_at.desc';
-      else if (tableName === 'performance') q = 'select=*&order=created_at.desc';
+      if (targetTable === 'attendance') q = 'select=*&order=attendance_date.desc&limit=1000';
+      else if (targetTable === 'payroll') q = 'select=*&order=pay_period.desc';
+      else if (targetTable === 'payslips') q = 'select=*&order=payslip_id.desc';
+      else if (targetTable === 'company_announcements') q = 'select=*&order=created_at.desc';
+      else if (targetTable === 'messages_notifications') q = 'select=*&order=created_at.desc';
+      else if (targetTable === 'job_postings') q = 'select=*&order=created_at.desc';
+      else if (targetTable === 'performance') q = 'select=*&order=created_at.desc';
+      else if (targetTable === 'reports_analytics') q = 'select=*&order=generated_at.desc';
       else q = 'select=*';
     }
-    const directData = await supabaseDirectFetch(tableName, q);
+    const directData = await supabaseDirectFetch(targetTable, q);
     if (directData !== null && Array.isArray(directData)) {
       const normalized = normalizeTableRows(tableName, directData);
       if (typeof window !== 'undefined') {
@@ -115,7 +129,7 @@ export const fetchTableData = async (tableName, customQuery = '') => {
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
-      const { data, error } = await supabase.from(tableName).select('*');
+      const { data, error } = await supabase.from(targetTable).select('*');
       if (!error && Array.isArray(data)) {
         const normalized = normalizeTableRows(tableName, data);
         if (typeof window !== 'undefined') {
