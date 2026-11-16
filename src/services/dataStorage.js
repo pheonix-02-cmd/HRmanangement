@@ -47,6 +47,7 @@ export const getPrimaryKeyColumn = (tableName) => {
     grievances: 'grievance_id',
     company_announcements: 'announcement_id',
     messages_notifications: 'notification_id',
+    performance: 'performance_id',
     profiles: 'id'
   };
   return map[tableName] || 'id';
@@ -93,6 +94,7 @@ export const fetchTableData = async (tableName, customQuery = '') => {
       else if (tableName === 'company_announcements') q = 'select=*&order=created_at.desc';
       else if (tableName === 'messages_notifications') q = 'select=*&order=created_at.desc';
       else if (tableName === 'job_postings') q = 'select=*&order=created_at.desc';
+      else if (tableName === 'performance') q = 'select=*&order=created_at.desc';
       else q = 'select=*';
     }
     const directData = await supabaseDirectFetch(tableName, q);
