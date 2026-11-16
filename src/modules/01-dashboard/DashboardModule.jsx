@@ -52,7 +52,6 @@ export const DashboardModule = ({ onNavigate }) => {
   const [performanceList, setPerformanceList] = useState([]);
   const [payrollList, setPayrollList] = useState([]);
   const [reportsAnalytics, setReportsAnalytics] = useState([]);
-  const [selectedReportModal, setSelectedReportModal] = useState(null);
   const [reportFilter, setReportFilter] = useState('all');
   const [isRefreshingReports, setIsRefreshingReports] = useState(false);
 
@@ -609,27 +608,23 @@ export const DashboardModule = ({ onNavigate }) => {
   return (
     <div className="space-y-6">
       
-      {/* 1. Executive Intelligence Banner */}
-      <div className="rounded-2xl p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-teal-950 text-white border border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      {/* 1. Executive Intelligence Banner - Clean Light Theme */}
+      <div className="rounded-2xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight">
-              Executive Reports & Analytics Center
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+              Executive Reports & Analytics
             </h1>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/40 uppercase font-semibold">
-              {user?.role || 'Management'}
-            </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 flex items-center space-x-1">
-              <Database className="w-3 h-3 inline mr-1 text-teal-400" />
-              <span>reports_analytics synced ({reportsAnalytics.length} rows)</span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 font-semibold uppercase">
+              {user?.role || 'Management'} Portal
             </span>
           </div>
-          <p className="text-xs text-slate-300 mt-1.5 flex items-center flex-wrap gap-2">
-            <span>Cycle: <strong>{reportingCycle}</strong> (01 Jul 2026 – 30 Sep 2026)</span>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 flex items-center flex-wrap gap-2">
+            <span>Audit Cycle: <strong>{reportingCycle}</strong></span>
             <span>•</span>
-            <span>Organization Scoped: <strong>{totalScopedEmployees} Staff</strong></span>
+            <span>Scoped Personnel: <strong>{totalScopedEmployees} Staff</strong></span>
             <span>•</span>
-            <span>Lead Evaluator: <strong className="font-mono text-teal-300">{leadReviewer}</strong></span>
+            <span>Review Lead: <strong className="font-mono text-slate-700 dark:text-slate-300">{leadReviewer}</strong></span>
           </p>
         </div>
 
@@ -637,15 +632,15 @@ export const DashboardModule = ({ onNavigate }) => {
           <button
             onClick={loadAll}
             disabled={isRefreshingReports}
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition flex items-center space-x-1.5 backdrop-blur-xs disabled:opacity-50"
-            title="Reload reports from Supabase"
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center space-x-1.5 disabled:opacity-50"
+            title="Refresh metrics"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingReports ? 'animate-spin' : ''}`} />
-            <span>Sync Live DB</span>
+            <span>Refresh Metrics</span>
           </button>
           <button
             onClick={() => onNavigate('attendance')}
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-teal-500 hover:bg-teal-600 text-white transition flex items-center space-x-1.5 shadow-sm"
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white transition flex items-center space-x-1.5 shadow-2xs"
           >
             <Clock className="w-3.5 h-3.5" />
             <span>Attendance Logs</span>
@@ -653,19 +648,16 @@ export const DashboardModule = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* 2. Top Executive KPI Cards (Powered by reports_analytics table) */}
+      {/* 2. Top Executive KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Performance KPI */}
-        <div 
-          onClick={() => perfReport && setSelectedReportModal(perfReport)}
-          className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-400 dark:hover:border-amber-600 transition cursor-pointer group shadow-2xs"
-        >
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Org Performance
             </span>
-            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition">
+            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">
               <Award className="w-4 h-4" />
             </div>
           </div>
@@ -680,22 +672,15 @@ export const DashboardModule = ({ onNavigate }) => {
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
             Avg Progress: <strong className="text-slate-800 dark:text-slate-200">{orgAvgProgress}%</strong> across {totalScopedEmployees} staff
           </p>
-          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-            <span className="font-mono text-amber-600 dark:text-amber-400 font-medium">reports_analytics</span>
-            <span className="group-hover:text-amber-500 transition flex items-center">Inspect <ChevronRight className="w-3 h-3 ml-0.5" /></span>
-          </div>
         </div>
 
         {/* Attendance KPI */}
-        <div 
-          onClick={() => attReport && setSelectedReportModal(attReport)}
-          className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-teal-400 dark:hover:border-teal-600 transition cursor-pointer group shadow-2xs"
-        >
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Attendance Health
+              Attendance Rate
             </span>
-            <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 group-hover:scale-105 transition">
+            <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400">
               <Clock className="w-4 h-4" />
             </div>
           </div>
@@ -708,24 +693,17 @@ export const DashboardModule = ({ onNavigate }) => {
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
-            Tracking {attMetricsList.length} quarterly metrics
+            Tracking {attMetricsList.length} shift parameters
           </p>
-          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-            <span className="font-mono text-teal-600 dark:text-teal-400 font-medium">reports_analytics</span>
-            <span className="group-hover:text-teal-500 transition flex items-center">Inspect <ChevronRight className="w-3 h-3 ml-0.5" /></span>
-          </div>
         </div>
 
         {/* Payroll Operations KPI */}
-        <div 
-          onClick={() => payReport && setSelectedReportModal(payReport)}
-          className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 transition cursor-pointer group shadow-2xs"
-        >
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Payroll Operations
+              Payroll Status
             </span>
-            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition">
+            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
@@ -738,24 +716,17 @@ export const DashboardModule = ({ onNavigate }) => {
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
-            Gross, Net, Deductions & Status verified
+            Gross, Net, Deductions verified
           </p>
-          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-            <span className="font-mono text-indigo-600 dark:text-indigo-400 font-medium">reports_analytics</span>
-            <span className="group-hover:text-indigo-500 transition flex items-center">Inspect <ChevronRight className="w-3 h-3 ml-0.5" /></span>
-          </div>
         </div>
 
         {/* Recruitment Pipeline KPI */}
-        <div 
-          onClick={() => recReport && setSelectedReportModal(recReport)}
-          className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-400 dark:hover:border-sky-600 transition cursor-pointer group shadow-2xs"
-        >
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Recruitment Funnel
+              Job Openings
             </span>
-            <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400 group-hover:scale-105 transition">
+            <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400">
               <Briefcase className="w-4 h-4" />
             </div>
           </div>
@@ -764,25 +735,21 @@ export const DashboardModule = ({ onNavigate }) => {
               {activeJobs.length}
             </span>
             <span className="text-xs text-sky-600 dark:text-sky-400 font-semibold">
-              Active Openings
+              Active Positions
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
-            Applications, shortlist, interviews & selections
+            Applications, interviews & selections
           </p>
-          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-            <span className="font-mono text-sky-600 dark:text-sky-400 font-medium">reports_analytics</span>
-            <span className="group-hover:text-sky-500 transition flex items-center">Inspect <ChevronRight className="w-3 h-3 ml-0.5" /></span>
-          </div>
         </div>
 
       </div>
 
-      {/* 3. Consolidated HRMS Management Overview (From reports_analytics where report_type='management') */}
-      <div className="rounded-2xl p-6 bg-gradient-to-br from-purple-50/60 via-white to-indigo-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-purple-950/20 border border-purple-200/80 dark:border-purple-900/50 shadow-2xs">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-purple-100 dark:border-purple-900/40">
+      {/* 3. Consolidated HRMS Management Overview */}
+      <div className="rounded-2xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="pb-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-xl bg-purple-600 text-white shadow-xs">
+            <div className="p-2.5 rounded-xl bg-teal-50 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400">
               <Layers className="w-5 h-5" />
             </div>
             <div>
@@ -790,35 +757,30 @@ export const DashboardModule = ({ onNavigate }) => {
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
                   {mgmtReport?.report_name || 'Management Overview'}
                 </h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 font-semibold uppercase">
-                  Consolidated Scope
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 font-semibold uppercase">
+                  5 Core Modules
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {mgmtData.description || 'Consolidated HRMS management overview spanning all 5 core modules'} • Period: <strong>2026-07-01 to 2026-09-30</strong>
+                {mgmtData.description || 'Consolidated HRMS management overview spanning all 5 core modules'}
               </p>
             </div>
           </div>
-
-          <button
-            onClick={() => mgmtReport && setSelectedReportModal(mgmtReport)}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white transition flex items-center space-x-1.5 self-start sm:self-auto shrink-0 shadow-xs"
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span>Inspect Overview Data</span>
-          </button>
+          <span className="text-xs text-slate-400 font-medium hidden sm:inline">
+            Cycle: {reportingCycle}
+          </span>
         </div>
 
-        {/* The 5 Core Modules Stored in report_data.modules_included */}
+        {/* The 5 Core Modules */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 pt-5">
           {mgmtModulesList.map((moduleName, i) => {
             const icons = [Users, Clock, CreditCard, Briefcase, Award];
             const ModIcon = icons[i % icons.length];
             return (
-              <div key={i} className="p-3.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-purple-100/80 dark:border-slate-700/60 flex flex-col justify-between">
+              <div key={i} className="p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/60 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <div className="p-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
+                    <div className="p-1.5 rounded-lg bg-teal-100/70 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300">
                       <ModIcon className="w-4 h-4" />
                     </div>
                     <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center">
@@ -830,13 +792,13 @@ export const DashboardModule = ({ onNavigate }) => {
                   </h4>
                   <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
                     {i === 0 && '30 Personnel directory, 5 departments'}
-                    {i === 1 && 'Shift punch-in/out & 92% rate'}
+                    {i === 1 && 'Shift punch-in/out & 75% rate'}
                     {i === 2 && 'Salary structures & monthly slips'}
                     {i === 3 && 'Talent requisition & interviews'}
                     {i === 4 && 'Quarterly reviews & 4.3 ⭐ rating'}
                   </p>
                 </div>
-                <div className="pt-2.5 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-purple-700 dark:text-purple-400 font-medium">
+                <div className="pt-2.5 mt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                   <span>Module #{i + 1}</span>
                   <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
                 </div>
@@ -846,17 +808,17 @@ export const DashboardModule = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* 4. Visual Analytics & Charts Suite */}
+      {/* 4. Visual Analytics: Charts & Benchmarks */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Interactive SVG Donut / Pie Chart: Multi-Module Analytics Weighting */}
-        <div className="rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+        {/* Module Analytics Weighting (Pie / Donut Chart) */}
+        <div className="rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-2xs">
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2">
                 <PieIcon className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                 <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                  Module Analytics Weighting (Pie Chart)
+                  Module Analytics Weighting
                 </h3>
               </div>
               <span className="text-[11px] text-slate-400">Q3 Audit</span>
@@ -866,7 +828,6 @@ export const DashboardModule = ({ onNavigate }) => {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 py-3">
               <div className="relative w-36 h-36 shrink-0">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 110 110">
-                  {/* Track circle */}
                   <circle
                     cx="55"
                     cy="55"
@@ -875,7 +836,6 @@ export const DashboardModule = ({ onNavigate }) => {
                     strokeWidth="14"
                     fill="transparent"
                   />
-                  {/* Slices */}
                   {slicesWithOffsets.map((slice, i) => (
                     <circle
                       key={i}
@@ -888,8 +848,7 @@ export const DashboardModule = ({ onNavigate }) => {
                       strokeDashoffset={slice.strokeDashoffset}
                       strokeLinecap="round"
                       fill="transparent"
-                      className="transition-all duration-700 hover:opacity-85 cursor-pointer"
-                      onClick={() => slice.report && setSelectedReportModal(slice.report)}
+                      className="transition-all duration-700"
                     />
                   ))}
                 </svg>
@@ -900,7 +859,7 @@ export const DashboardModule = ({ onNavigate }) => {
                     {reportsAnalytics.length}
                   </span>
                   <span className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider mt-0.5">
-                    Reports
+                    Modules
                   </span>
                 </div>
               </div>
@@ -910,8 +869,7 @@ export const DashboardModule = ({ onNavigate }) => {
                 {donutSlices.map((s, idx) => (
                   <div
                     key={idx}
-                    onClick={() => s.report && setSelectedReportModal(s.report)}
-                    className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="flex items-center justify-between p-1.5 rounded-lg"
                   >
                     <div className="flex items-center space-x-2">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
@@ -925,22 +883,22 @@ export const DashboardModule = ({ onNavigate }) => {
           </div>
 
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-            <span>Balanced HRMS Evaluation</span>
+            <span>Enterprise Distribution</span>
             <span className="text-teal-600 dark:text-teal-400 font-medium">100% Comprehensive</span>
           </div>
         </div>
 
-        {/* Executive Benchmark Progress (Bar Chart) */}
-        <div className="lg:col-span-2 rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+        {/* Organizational Target Benchmarks (Bar Chart) */}
+        <div className="lg:col-span-2 rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-2xs">
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2">
                 <BarChart3 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                 <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                  Organizational Target Benchmarks (Bar Chart)
+                  Organizational Target Benchmarks
                 </h3>
               </div>
-              <span className="text-[11px] text-slate-400">Enterprise Standard: 80%</span>
+              <span className="text-[11px] text-slate-400">Target Standard: 80%</span>
             </div>
 
             {/* Benchmark Bar Chart List */}
@@ -962,7 +920,6 @@ export const DashboardModule = ({ onNavigate }) => {
                     </span>
                   </div>
                   <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden relative">
-                    {/* Benchmark pin line */}
                     <div
                       className="absolute top-0 bottom-0 w-0.5 bg-slate-400/60 z-10"
                       style={{ left: `${b.benchmark}%` }}
@@ -979,23 +936,23 @@ export const DashboardModule = ({ onNavigate }) => {
           </div>
 
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-            <span>Vertical line indicates organizational target threshold</span>
+            <span>Vertical line indicates target threshold (80%)</span>
             <span className="text-emerald-600 dark:text-emerald-400 font-medium">All Units Exceed Benchmarks</span>
           </div>
         </div>
 
       </div>
 
-      {/* 5. Complete Reports & Analytics Records Table/Grid (Direct from Supabase reports_analytics) */}
-      <div className="rounded-2xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
+      {/* 5. Clean Departmental Reports & Key Metrics Summary */}
+      <div className="rounded-2xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
               <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-              <span>Database Records: reports_analytics Table</span>
+              <span>Departmental Reports & Metrics Summary</span>
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Structured operational intelligence rows fetched live from Supabase PostgreSQL
+              Key operational metrics organized by department and reporting category
             </p>
           </div>
 
@@ -1034,7 +991,7 @@ export const DashboardModule = ({ onNavigate }) => {
             return (
               <div
                 key={report.report_id || report.id}
-                className="rounded-xl p-4 bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 hover:border-teal-400/80 dark:hover:border-teal-600/80 transition flex flex-col justify-between space-y-3 group"
+                className="rounded-xl p-4 bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-3"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
@@ -1042,11 +999,11 @@ export const DashboardModule = ({ onNavigate }) => {
                       {report.report_type}
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
-                      {report.generated_at ? new Date(report.generated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Nov 15, 2026'}
+                      Cycle: {rPeriod}
                     </span>
                   </div>
 
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-2">
                     {report.report_name}
                   </h4>
 
@@ -1070,14 +1027,14 @@ export const DashboardModule = ({ onNavigate }) => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-500">Scoped Staff:</span>
-                        <span className="font-mono">{rData.total_employees || 30} employees</span>
+                        <span className="font-mono text-slate-700 dark:text-slate-300 font-semibold">{rData.total_employees || 30} employees</span>
                       </div>
                     </div>
                   )}
 
                   {report.report_type === 'attendance' && (
                     <div className="mt-3 p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 text-xs">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1.5">Tracked Metrics:</span>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1.5">Tracked Parameters:</span>
                       <div className="flex flex-wrap gap-1">
                         {(rData.metrics || attMetricsList).map((m, i) => (
                           <span key={i} className="text-[10px] px-2 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60">
@@ -1103,7 +1060,7 @@ export const DashboardModule = ({ onNavigate }) => {
 
                   {report.report_type === 'recruitment' && (
                     <div className="mt-3 p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 text-xs">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1.5">Funnel Milestones:</span>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1.5">Pipeline Stages:</span>
                       <div className="flex flex-wrap gap-1">
                         {(rData.metrics || recMetricsList).map((m, i) => (
                           <span key={i} className="text-[10px] px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60">
@@ -1128,17 +1085,9 @@ export const DashboardModule = ({ onNavigate }) => {
                   )}
                 </div>
 
-                <div className="pt-2.5 border-t border-slate-200/70 dark:border-slate-800 flex items-center justify-between text-xs">
-                  <span className="text-[10px] text-slate-400 font-mono truncate max-w-[150px]">
-                    Period: {rPeriod}
-                  </span>
-                  <button
-                    onClick={() => setSelectedReportModal(report)}
-                    className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 flex items-center space-x-1"
-                  >
-                    <span>View JSON</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
+                <div className="pt-2.5 border-t border-slate-200/70 dark:border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                  <span className="text-[11px] font-medium">Status: Logged & Verified</span>
+                  <span className="text-[11px] font-mono">{rPeriod}</span>
                 </div>
               </div>
             );
@@ -1250,99 +1199,6 @@ export const DashboardModule = ({ onNavigate }) => {
         </div>
 
       </div>
-
-      {/* 7. Detailed Report Inspector Modal */}
-      {selectedReportModal && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs transition-opacity"
-          onClick={() => setSelectedReportModal(null)}
-        >
-          <div 
-            className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-h-[85vh] flex flex-col"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-start justify-between bg-slate-50/70 dark:bg-slate-800/40">
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    {selectedReportModal.report_name}
-                  </h3>
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border font-bold uppercase tracking-wide ${getReportMeta(selectedReportModal.report_type).color}`}>
-                    {selectedReportModal.report_type}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                  Report ID: {selectedReportModal.report_id || selectedReportModal.id}
-                </p>
-              </div>
-
-              <button
-                onClick={() => setSelectedReportModal(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-6 overflow-y-auto space-y-4 text-xs">
-              
-              {/* Audit Meta Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase block">Period Start</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedReportModal.report_period_start || '2026-07-01'}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase block">Period End</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedReportModal.report_period_end || '2026-09-30'}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 col-span-2 sm:col-span-1">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase block">Generated At</span>
-                  <span className="font-mono text-slate-800 dark:text-slate-200 text-[11px]">
-                    {selectedReportModal.generated_at ? new Date(selectedReportModal.generated_at).toLocaleString() : 'Nov 15, 2026, 09:12 AM'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Description */}
-              {selectedReportModal.report_data?.description && (
-                <div className="p-3.5 rounded-xl bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900/50">
-                  <span className="text-[10px] font-bold uppercase text-teal-800 dark:text-teal-300 block mb-0.5">Summary Synopsis:</span>
-                  <p className="text-slate-700 dark:text-slate-300 font-medium">
-                    {selectedReportModal.report_data.description}
-                  </p>
-                </div>
-              )}
-
-              {/* Stored report_data JSON Details */}
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide block">
-                  Raw PostgreSQL JSONB Payload (`report_data`):
-                </span>
-                <div className="p-4 rounded-xl bg-slate-900 text-slate-200 font-mono text-[11px] overflow-x-auto border border-slate-800">
-                  <pre>{JSON.stringify(selectedReportModal.report_data, null, 2)}</pre>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
-              <span className="text-[11px] text-slate-400">
-                Source: <strong className="font-mono text-teal-600 dark:text-teal-400">reports_analytics</strong> table
-              </span>
-              <button
-                onClick={() => setSelectedReportModal(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-800 transition shadow-xs"
-              >
-                Close Inspector
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
