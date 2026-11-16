@@ -8,7 +8,11 @@ import {
   RefreshCw, 
   Search, 
   Users, 
-  AlertCircle 
+  AlertCircle,
+  Plus,
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { useAuth } from '../../context/AuthContext';
@@ -21,10 +25,21 @@ export const AttendanceModule = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [submittingManual, setSubmittingManual] = useState(false);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const currentEmpId = String(user?.employee_id || user?.id || '').trim().toUpperCase();
   const isEmployee = user?.role === 'employee';
+
+  const [manualForm, setManualForm] = useState({
+    employee_id: '',
+    attendance_date: todayStr,
+    check_in: '09:00',
+    check_out: '18:00',
+    status: 'Present'
+  });
 
   const formatAttendanceDate = (att) => {
     const raw = att.attendance_date || att.date || (att.created_at ? att.created_at.split('T')[0] : null);
@@ -53,8 +68,17 @@ export const AttendanceModule = () => {
         fetchTableData('attendance'),
         fetchTableData('employee_records')
       ]);
-      setAttendanceList(attRes.data || []);
-      setEmployees(empRes.data || []);
+      const atts = attRes.data || [];
+      const emps = empRes.data || [];
+      setAttendanceList(atts);
+      setEmployees(emps);
+
+      if (!manualForm.employee_id && emps.length > 0) {
+        setManualForm(prev => ({
+          ...prev,
+          employee_id: emps[0].employee_id || emps[0].id || ''
+        }));
+      }
     } catch (err) {
       console.error('Failed to load attendance:', err);
     } finally {
@@ -68,19 +92,22 @@ export const AttendanceModule = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Locate today's active record for the current user
-  const userTodayRecord = attendanceList.find(a => {
+  // Locate today's active records for the current user
+  const userTodayRecords = attendanceList.filter(a => {
     const matchesEmp = String(a.employee_id || '').trim().toUpperCase() === currentEmpId;
     const aDate = a.attendance_date || a.date || (a.created_at ? a.created_at.split('T')[0] : '');
     return matchesEmp && aDate === todayStr;
-  });
+  }).sort((a, b) => new Date(b.created_at || b.check_in || 0) - new Date(a.created_at || a.check_in || 0));
+
+  const userTodayRecord = userTodayRecords[0] || null;
 
   const punchInTime = userTodayRecord?.check_in || userTodayRecord?.punch_in;
   const punchOutTime = userTodayRecord?.check_out || userTodayRecord?.punch_out;
   const isClockedIn = Boolean(userTodayRecord && punchInTime && !punchOutTime);
   const isShiftCompleted = Boolean(userTodayRecord && punchInTime && punchOutTime);
 
-  const handleClockIn = async () => {
+  const handleClockIn = async (forceNew = false) => {
+    if (isClockedIn && !forceNew) return;
     const now = new Date();
     const isoNow = now.toISOString();
     const timeShort = now.toTimeString().split(' ')[0].slice(0, 5);
@@ -117,6 +144,37 @@ export const AttendanceModule = () => {
     await loadAttendance();
   };
 
+  const handleManualSubmit = async (e) => {
+    e.preventDefault();
+    if (!manualForm.employee_id || !manualForm.attendance_date) return;
+    setSubmittingManual(true);
+    try {
+      const checkInIso = manualForm.check_in 
+        ? new Date(`${manualForm.attendance_date}T${manualForm.check_in}:00`).toISOString() 
+        : null;
+      const checkOutIso = manualForm.check_out 
+        ? new Date(`${manualForm.attendance_date}T${manualForm.check_out}:00`).toISOString() 
+        : null;
+
+      const record = {
+        employee_id: manualForm.employee_id,
+        attendance_date: manualForm.attendance_date,
+        check_in: checkInIso,
+        check_out: checkOutIso,
+        status: manualForm.status,
+        created_at: new Date().toISOString()
+      };
+
+      await insertTableRow('attendance', record);
+      await loadAttendance();
+      setShowManualModal(false);
+    } catch (err) {
+      console.error('Failed to submit manual attendance:', err);
+    } finally {
+      setSubmittingManual(false);
+    }
+  };
+
   // Data Scoping: Employees ONLY see their own attendance records
   // Managers and Admins see organization-wide records
   const scopedAttendance = isEmployee
@@ -140,6 +198,13 @@ export const AttendanceModule = () => {
       const dateB = new Date(b.attendance_date || b.date || b.created_at || 0);
       return dateB - dateA;
     });
+
+  const PAGE_SIZE = 15;
+  const totalPages = Math.max(1, Math.ceil(displayAttendance.length / PAGE_SIZE));
+  const paginatedAttendance = displayAttendance.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
   return (
     <div className="space-y-6">
@@ -211,7 +276,7 @@ export const AttendanceModule = () => {
           <div className="pt-4">
             {!userTodayRecord ? (
               <button
-                onClick={handleClockIn}
+                onClick={() => handleClockIn(false)}
                 className="w-full py-2.5 rounded-lg text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 transition flex items-center justify-center space-x-1.5"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
@@ -226,9 +291,18 @@ export const AttendanceModule = () => {
                 <span>Clock Out for Today</span>
               </button>
             ) : (
-              <div className="w-full py-2 rounded-lg text-xs font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-center border border-emerald-200 dark:border-emerald-800 flex items-center justify-center space-x-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Shift completed for today</span>
+              <div className="space-y-2">
+                <div className="w-full py-2 rounded-lg text-xs font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-center border border-emerald-200 dark:border-emerald-800 flex items-center justify-center space-x-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Shift completed for today</span>
+                </div>
+                <button
+                  onClick={() => handleClockIn(true)}
+                  className="w-full py-2 rounded-lg text-xs font-semibold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 hover:bg-teal-100 dark:hover:bg-teal-900/60 border border-teal-200 dark:border-teal-800 transition flex items-center justify-center space-x-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Punch Another Shift / Clock In Again</span>
+                </button>
               </div>
             )}
           </div>
@@ -265,22 +339,40 @@ export const AttendanceModule = () => {
       {/* Attendance Register */}
       <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-            {isEmployee ? 'My Attendance History' : 'Enterprise Attendance Register'}
-          </h3>
+          <div className="flex items-center space-x-2">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+              {isEmployee ? 'My Attendance History' : 'Enterprise Attendance Register'}
+            </h3>
+            <span className="text-[11px] text-slate-400">
+              ({displayAttendance.length} records)
+            </span>
+          </div>
 
-          {!isEmployee && (
-            <div className="relative sm:w-72">
+          <div className="flex items-center space-x-2">
+            <div className="relative sm:w-64">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name, EMP ID, date, status..."
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder={isEmployee ? "Filter by date or status..." : "Search name, ID, date, status..."}
                 className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:border-teal-500"
               />
             </div>
-          )}
+
+            {!isEmployee && (
+              <button
+                onClick={() => setShowManualModal(true)}
+                className="py-1.5 px-3 rounded-lg text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 transition flex items-center space-x-1.5 shrink-0 shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Mark Attendance</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -295,7 +387,7 @@ export const AttendanceModule = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-mono">
-              {displayAttendance.map((att) => {
+              {paginatedAttendance.map((att) => {
                 const attId = att.attendance_id || att.id;
                 const emp = employees.find(e => String(e.employee_id || e.id).toUpperCase() === String(att.employee_id).toUpperCase());
                 const empName = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() : att.employee_id;
@@ -360,7 +452,157 @@ export const AttendanceModule = () => {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <span className="text-slate-500 dark:text-slate-400">
+              Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, displayAttendance.length)} to {Math.min(currentPage * PAGE_SIZE, displayAttendance.length)} of {displayAttendance.length} records
+            </span>
+            <div className="flex items-center space-x-1.5">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent transition text-slate-600 dark:text-slate-300"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <span className="px-2 font-mono text-slate-700 dark:text-slate-300 font-medium">
+                {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent transition text-slate-600 dark:text-slate-300"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Management Manual Attendance Modal */}
+      {showManualModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Record Attendance</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Log or backdate employee punch in Supabase</p>
+              </div>
+              <button
+                onClick={() => setShowManualModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleManualSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-600 dark:text-slate-400 font-medium mb-1">
+                  Select Employee <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  required
+                  value={manualForm.employee_id}
+                  onChange={(e) => setManualForm(prev => ({ ...prev, employee_id: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:border-teal-500"
+                >
+                  <option value="">-- Choose Employee --</option>
+                  {employees.map(emp => {
+                    const id = emp.employee_id || emp.id;
+                    const name = `${emp.first_name || ''} ${emp.last_name || ''}`.trim();
+                    return (
+                      <option key={id} value={id}>
+                        {id} - {name} ({emp.department || 'Staff'})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-400 font-medium mb-1">
+                  Attendance Date <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={manualForm.attendance_date}
+                  onChange={(e) => setManualForm(prev => ({ ...prev, attendance_date: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:border-teal-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-400 font-medium mb-1">
+                    Check In Time
+                  </label>
+                  <input
+                    type="time"
+                    value={manualForm.check_in}
+                    onChange={(e) => setManualForm(prev => ({ ...prev, check_in: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:border-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-400 font-medium mb-1">
+                    Check Out Time
+                  </label>
+                  <input
+                    type="time"
+                    value={manualForm.check_out}
+                    onChange={(e) => setManualForm(prev => ({ ...prev, check_out: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:border-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-400 font-medium mb-1">
+                  Status
+                </label>
+                <select
+                  value={manualForm.status}
+                  onChange={(e) => setManualForm(prev => ({ ...prev, status: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:border-teal-500"
+                >
+                  <option value="Present">Present</option>
+                  <option value="Late">Late</option>
+                  <option value="Half Day">Half Day</option>
+                  <option value="Absent">Absent</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowManualModal(false)}
+                  className="px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingManual || !manualForm.employee_id}
+                  className="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-semibold transition disabled:opacity-50 flex items-center space-x-1.5"
+                >
+                  {submittingManual ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>Save Attendance</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
